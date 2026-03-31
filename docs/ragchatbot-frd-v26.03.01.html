@@ -1,0 +1,1589 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>RAG Chatbot — Functional Requirements Document v26.03.01</title>
+<style>
+/* ═══════════════════════════════════════════
+   CSS CUSTOM PROPERTIES — Light / Dark
+═══════════════════════════════════════════ */
+:root {
+  --bg:         #F0F4F8;
+  --card-bg:    #ffffff;
+  --card-border:#E2E8F0;
+  --text:       #1E293B;
+  --text-muted: #64748B;
+  --text-faint: #94A3B8;
+  --header-bg:  #ffffff;
+  --header-border: #E2E8F0;
+  --toc-bg:     #ffffff;
+  --toc-border: #E2E8F0;
+  --code-bg:    #0F172A;
+  --code-text:  #CBD5E1;
+  --input-bg:   #ffffff;
+  --input-border:#CBD5E1;
+  --mark-bg:    #FEF08A;
+  --mark-text:  #1E293B;
+  --shadow:     0 1px 3px rgba(0,0,0,0.08);
+  --brand:      #800000;
+}
+[data-theme="dark"] {
+  --bg:         #0F172A;
+  --card-bg:    #1E293B;
+  --card-border:#334155;
+  --text:       #E2E8F0;
+  --text-muted: #94A3B8;
+  --text-faint: #64748B;
+  --header-bg:  #1E293B;
+  --header-border:#334155;
+  --toc-bg:     #1E293B;
+  --toc-border: #334155;
+  --code-bg:    #020617;
+  --code-text:  #93C5FD;
+  --input-bg:   #0F172A;
+  --input-border:#475569;
+  --mark-bg:    #854D0E;
+  --mark-text:  #FEF3C7;
+  --shadow:     0 1px 4px rgba(0,0,0,0.4);
+}
+
+/* ═══════════════════════════════════════════
+   BASE
+═══════════════════════════════════════════ */
+* { margin:0; padding:0; box-sizing:border-box; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  background: var(--bg); color: var(--text); line-height: 1.5;
+  transition: background 0.25s, color 0.25s;
+}
+
+/* ═══════════════════════════════════════════
+   SCROLL PROGRESS BAR
+═══════════════════════════════════════════ */
+#progress-bar {
+  position: fixed; top: 0; left: 0; width: 0%; height: 3px;
+  background: var(--brand); z-index: 9999;
+  transition: width 0.08s linear;
+}
+
+/* ═══════════════════════════════════════════
+   REPORT HEADER (musigma report style)
+═══════════════════════════════════════════ */
+.report-header {
+  background: var(--header-bg);
+  border-bottom: 2px solid var(--brand);
+  padding: 16px 32px;
+  display: flex; align-items: center; gap: 24px;
+  position: sticky; top: 3px; z-index: 500;
+  box-shadow: var(--shadow);
+  transition: background 0.25s;
+}
+.rh-logo img {
+  height: 72px; display: block;
+  background: white; padding: 4px 6px; border-radius: 4px;
+  border: 1px solid var(--card-border);
+}
+.rh-title { flex: 1; text-align: center; }
+.rh-title-text {
+  font-size: 26px; font-weight: 600; color: var(--brand); line-height: 1.2;
+}
+.rh-title-meta {
+  font-size: 13px; color: var(--text-muted); margin-top: 4px;
+}
+.rh-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.icon-btn {
+  width: 34px; height: 34px; border-radius: 8px;
+  border: 1px solid var(--card-border); background: var(--card-bg);
+  color: var(--text-muted); cursor: pointer; display: flex;
+  align-items: center; justify-content: center; font-size: 16px;
+  transition: all 0.15s; flex-shrink: 0;
+}
+.icon-btn:hover { border-color: var(--brand); color: var(--brand); background: var(--bg); }
+
+/* ═══════════════════════════════════════════
+   LAYOUT
+═══════════════════════════════════════════ */
+.layout { display: flex; min-height: 100vh; }
+#toc-sidebar {
+  width: 220px; min-width: 220px; position: sticky; top: calc(3px + 104px);
+  height: calc(100vh - 107px); overflow-y: auto;
+  background: var(--toc-bg); border-right: 1px solid var(--toc-border);
+  padding: 20px 0; flex-shrink: 0; transition: background 0.25s;
+}
+.toc-label {
+  font-size: 10px; font-weight: 700; letter-spacing: 2px; color: var(--text-faint);
+  padding: 0 18px 10px; text-transform: uppercase;
+}
+#toc-nav a {
+  display: block; padding: 6px 18px; font-size: 12px; color: var(--text-muted);
+  text-decoration: none; border-left: 3px solid transparent; line-height: 1.4;
+  transition: all 0.15s;
+}
+#toc-nav a:hover { background: var(--bg); color: var(--text); }
+#toc-nav a.active {
+  background: #fff1f1; border-left-color: var(--brand);
+  color: var(--brand); font-weight: 600;
+}
+[data-theme="dark"] #toc-nav a.active { background: rgba(128,0,0,0.15); }
+#main-content { flex: 1; padding: 36px 44px 100px; min-width: 0; }
+
+/* ═══════════════════════════════════════════
+   SECTIONS — COLLAPSIBLE
+═══════════════════════════════════════════ */
+.doc-section { margin-bottom: 44px; }
+.section-header {
+  display: flex; align-items: center; justify-content: space-between;
+  cursor: pointer; user-select: none; padding: 4px 0;
+}
+.section-title {
+  font-size: 21px; font-weight: 700; color: var(--text);
+  padding-left: 14px; border-left: 4px solid var(--brand);
+}
+.section-desc { font-size: 13px; color: var(--text-muted); margin: 4px 0 0 18px; }
+.section-chevron {
+  font-size: 18px; color: var(--text-faint); transition: transform 0.25s;
+  flex-shrink: 0; margin-left: 8px;
+}
+.section-chevron.collapsed { transform: rotate(-90deg); }
+.section-body {
+  overflow: hidden;
+  transition: max-height 0.35s ease, opacity 0.25s ease;
+  max-height: 9000px; opacity: 1;
+}
+.section-body.collapsed { max-height: 0; opacity: 0; }
+
+/* ═══════════════════════════════════════════
+   CARDS
+═══════════════════════════════════════════ */
+.card {
+  background: var(--card-bg); border-radius: 12px; padding: 22px;
+  margin-bottom: 16px; box-shadow: var(--shadow); border: 1px solid var(--card-border);
+  transition: background 0.25s;
+}
+.mini-card {
+  background: var(--card-bg); border: 1.5px solid var(--card-border);
+  border-radius: 8px; padding: 16px; transition: background 0.25s;
+}
+h3 { font-size: 14px; font-weight: 700; color: var(--text); margin: 20px 0 10px; }
+p { font-size: 13px; color: var(--text-muted); margin-bottom: 10px; line-height: 1.65; }
+code {
+  background: var(--bg); border: 1px solid var(--card-border); border-radius: 3px;
+  padding: 1px 5px; font-size: 11px; font-family: 'Courier New', monospace; color: var(--text);
+}
+
+/* ═══════════════════════════════════════════
+   GRIDS
+═══════════════════════════════════════════ */
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+
+/* ═══════════════════════════════════════════
+   TABLES
+═══════════════════════════════════════════ */
+.table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; border-radius: 8px; }
+table { width: 100%; border-collapse: collapse; font-size: 12px; }
+thead { border-bottom: 2px solid var(--card-border); }
+th {
+  text-align: left; padding: 8px 12px; font-size: 11px; font-weight: 700;
+  letter-spacing: 0.5px; color: var(--text-muted); background: var(--bg);
+}
+td { padding: 8px 12px; border-bottom: 1px solid var(--card-border); color: var(--text-muted); vertical-align: top; }
+tr:last-child td { border-bottom: none; }
+tr.table-row:hover td { background: var(--bg); }
+td strong { color: var(--text); }
+/* expandable sub-rows */
+.exp-row { display: none; }
+.exp-row td {
+  background: var(--bg); font-size: 11px; color: var(--text-muted);
+  padding: 8px 12px 10px 32px; border-left: 3px solid var(--brand);
+}
+.exp-row.open { display: table-row; }
+.exp-btn {
+  cursor: pointer; background: none; border: none; color: var(--text-faint);
+  font-size: 13px; font-weight: 700; padding: 0 4px; line-height: 1;
+  transition: color 0.15s;
+}
+.exp-btn:hover { color: var(--brand); }
+
+/* ═══════════════════════════════════════════
+   BADGE FILTER
+═══════════════════════════════════════════ */
+.filter-bar { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; align-items: center; }
+.filter-bar span { font-size: 11px; color: var(--text-muted); font-weight: 600; }
+.filter-btn {
+  padding: 3px 10px; border-radius: 16px; font-size: 11px; font-weight: 700;
+  border: 1.5px solid transparent; cursor: pointer; transition: all 0.15s;
+}
+.filter-btn.active { border-color: var(--brand); }
+
+/* ═══════════════════════════════════════════
+   TABLE PAGINATION
+═══════════════════════════════════════════ */
+.pagination-bar {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-top: 12px; flex-wrap: wrap; gap: 8px;
+}
+.pagination-bar span { font-size: 12px; color: var(--text-faint); }
+.pagination-btns { display: flex; gap: 4px; }
+.pg-btn {
+  min-width: 30px; height: 28px; border-radius: 6px; font-size: 12px; font-weight: 600;
+  border: 1px solid var(--card-border); background: var(--card-bg); color: var(--text-muted);
+  cursor: pointer; transition: all 0.15s; padding: 0 8px;
+}
+.pg-btn:hover { border-color: var(--brand); color: var(--brand); }
+.pg-btn.active { background: var(--brand); color: white; border-color: var(--brand); }
+.pg-btn:disabled { opacity: 0.35; cursor: default; pointer-events: none; }
+.filter-btn[data-f="all"]  { background:#F1F5F9; color:#475569; }
+.filter-btn[data-f="P1"]   { background:#DBEAFE; color:#1E40AF; }
+.filter-btn[data-f="P2"]   { background:#D1FAE5; color:#065F46; }
+.filter-btn[data-f="P3"]   { background:#F5F3FF; color:#6D28D9; }
+.filter-btn[data-f="P4"]   { background:#FEF3C7; color:#92400E; }
+.filter-btn[data-f="P5"]   { background:#FEE2E2; color:#991B1B; }
+.filter-btn[data-f="Post"] { background:#F1F5F9; color:#475569; }
+
+/* ═══════════════════════════════════════════
+   BADGES
+═══════════════════════════════════════════ */
+.badge { display:inline-block; padding:2px 9px; border-radius:20px; font-size:11px; font-weight:700; }
+.b-green  { background:#D1FAE5; color:#065F46; }
+.b-blue   { background:#DBEAFE; color:#1E40AF; }
+.b-amber  { background:#FEF3C7; color:#92400E; }
+.b-red    { background:#FEE2E2; color:#991B1B; }
+.b-purple { background:#F5F3FF; color:#6D28D9; }
+.b-slate  { background:#F1F5F9; color:#475569; }
+.b-maroon { background:#fef2f2; color:#800000; }
+
+/* ═══════════════════════════════════════════
+   CODE BLOCKS — COPY BUTTON
+═══════════════════════════════════════════ */
+.code-wrap { position: relative; margin: 12px 0; }
+.copy-btn {
+  position: absolute; top: 8px; right: 8px;
+  background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15);
+  color: #94A3B8; border-radius: 5px; padding: 3px 9px; font-size: 11px;
+  cursor: pointer; transition: all 0.15s;
+}
+.copy-btn:hover { background: rgba(255,255,255,0.15); color: #E2E8F0; }
+.copy-btn.copied { color: #86EFAC; border-color: #86EFAC; }
+.code-block {
+  background: var(--code-bg); border-radius: 10px; padding: 16px 20px;
+  font-family: 'Courier New', monospace; font-size: 12px;
+  color: var(--code-text); line-height: 1.85; white-space: pre; overflow-x: auto;
+}
+.ck{color:#93C5FD;} .cv{color:#86EFAC;} .cc{color:#64748B;} .ca{color:#FCA5A5;} .cy{color:#FDE68A;}
+
+/* ═══════════════════════════════════════════
+   PHASE TABS
+═══════════════════════════════════════════ */
+.tab-bar {
+  display: flex; gap: 4px; margin-bottom: 20px;
+  overflow-x: auto; padding: 4px 0;
+}
+.tab-btn {
+  padding: 8px 16px; font-size: 12px; font-weight: 600;
+  border: 1.5px solid var(--card-border);
+  border-radius: 8px;
+  background: var(--bg);
+  cursor: pointer; color: var(--text-muted);
+  white-space: nowrap; transition: all 0.15s;
+  flex-shrink: 0;
+}
+.tab-btn:hover {
+  background: var(--card-bg);
+  border-color: var(--brand);
+  color: var(--text);
+}
+.tab-btn.active {
+  background: var(--card-bg);
+  border-color: var(--brand);
+  color: var(--brand);
+  font-weight: 700;
+  box-shadow: 0 1px 4px rgba(128,0,0,0.15);
+}
+[data-theme="dark"] .tab-btn.active {
+  background: rgba(128,0,0,0.15);
+}
+.tab-pane { display: none; }
+.tab-pane.active { display: block; }
+
+/* ═══════════════════════════════════════════
+   NOTES
+═══════════════════════════════════════════ */
+.note { background: var(--bg); border-radius: 8px; padding: 11px 15px; font-size: 12px; color: var(--text-muted); line-height: 1.6; margin-top: 12px; border: 1px solid var(--card-border); }
+.note-blue   { background: #EFF6FF; color: #1E40AF; border-color: #BFDBFE; }
+.note-green  { background: #ECFDF5; color: #065F46; border-color: #A7F3D0; }
+.note-amber  { background: #FEF3C7; color: #92400E; border-color: #FDE68A; }
+.note-maroon { background: #fff1f1; color: #800000; border-color: #fecaca; }
+[data-theme="dark"] .note-blue   { background: rgba(59,130,246,0.12); color: #93C5FD; border-color: rgba(59,130,246,0.3); }
+[data-theme="dark"] .note-green  { background: rgba(16,185,129,0.12); color: #6EE7B7; border-color: rgba(16,185,129,0.3); }
+[data-theme="dark"] .note-amber  { background: rgba(245,158,11,0.12); color: #FDE68A; border-color: rgba(245,158,11,0.3); }
+[data-theme="dark"] .note-maroon { background: rgba(128,0,0,0.15); color: #FCA5A5; border-color: rgba(128,0,0,0.3); }
+
+/* ═══════════════════════════════════════════
+   HERO
+═══════════════════════════════════════════ */
+.hero { background: linear-gradient(135deg,#1E293B 0%,#0F172A 100%); border-radius: 14px; padding: 26px 30px; margin-bottom: 24px; }
+.hero-title { font-size: 19px; font-weight: 700; color: white; margin-bottom: 5px; }
+.hero-sub { font-size: 13px; color: #94A3B8; margin-bottom: 20px; }
+.hero-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; }
+.hero-card { border-radius: 8px; padding: 14px; }
+.hero-card .icon { font-size: 20px; margin-bottom: 5px; }
+.hero-card .lbl { font-size: 12px; font-weight: 700; color: white; }
+.hero-card .dsc { font-size: 11px; color: #94A3B8; margin-top: 3px; }
+
+/* ═══════════════════════════════════════════
+   PHASE BARS
+═══════════════════════════════════════════ */
+.phase-row { display: grid; grid-template-columns: 100px 1fr 60px; gap: 12px; align-items: center; margin-bottom: 10px; }
+.phase-bar { height: 8px; border-radius: 4px; background: var(--card-border); overflow: hidden; }
+.phase-fill { height: 100%; border-radius: 4px; }
+
+/* ═══════════════════════════════════════════
+   SEARCH PANEL
+═══════════════════════════════════════════ */
+#search-panel {
+  position: fixed; top: 114px; left: 50%; transform: translateX(-50%);
+  width: min(480px, 90vw); background: var(--card-bg); border: 1px solid var(--card-border);
+  border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.18); z-index: 800;
+  padding: 14px 16px; display: none;
+}
+#search-panel.open { display: block; }
+.search-row { display: flex; gap: 8px; align-items: center; }
+#search-input {
+  flex: 1; background: var(--input-bg); border: 1px solid var(--input-border);
+  border-radius: 8px; padding: 8px 12px; font-size: 13px; color: var(--text); outline: none;
+}
+#search-input:focus { border-color: var(--brand); }
+#search-count { font-size: 12px; color: var(--text-faint); white-space: nowrap; }
+#search-close { font-size: 18px; cursor: pointer; color: var(--text-faint); padding: 0 4px; background: none; border: none; }
+mark { background: var(--mark-bg); color: var(--mark-text); border-radius: 2px; padding: 0 1px; }
+mark.current { outline: 2px solid var(--brand); }
+
+/* ═══════════════════════════════════════════
+   FLOATING BUTTONS
+═══════════════════════════════════════════ */
+#back-to-top {
+  position: fixed; bottom: 24px; left: 24px; z-index: 300;
+  background: var(--card-bg); border: 1px solid var(--card-border);
+  color: var(--text-muted); border-radius: 28px; padding: 9px 16px;
+  font-size: 12px; font-weight: 600; cursor: pointer;
+  box-shadow: var(--shadow); display: none; align-items: center; gap: 5px;
+  transition: all 0.15s;
+}
+#back-to-top:hover { border-color: var(--brand); color: var(--brand); }
+#back-to-top.visible { display: flex; }
+#toc-toggle-btn {
+  display: none; align-items: center; gap: 6px;
+  position: fixed; bottom: 24px; right: 24px; z-index: 300;
+  background: var(--brand); color: white; border: none; border-radius: 28px;
+  padding: 10px 18px; font-size: 13px; font-weight: 600;
+  box-shadow: 0 4px 14px rgba(128,0,0,0.4); cursor: pointer;
+}
+#toc-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.3); z-index: 199; }
+#toc-overlay.open { display: block; }
+
+/* ═══════════════════════════════════════════
+   FOOTER
+═══════════════════════════════════════════ */
+.footer { text-align: center; margin-top: 48px; padding-top: 20px; border-top: 1px solid var(--card-border); color: var(--text-faint); font-size: 12px; }
+
+/* ═══════════════════════════════════════════
+   PRINT
+═══════════════════════════════════════════ */
+@media print {
+  #progress-bar, .report-header .rh-actions, #toc-sidebar, #back-to-top,
+  #toc-toggle-btn, #toc-overlay, #search-panel, .section-chevron, .copy-btn,
+  .tab-bar, .filter-bar { display: none !important; }
+  .layout { display: block; }
+  .report-header { position: static; box-shadow: none; }
+  #main-content { padding: 20px !important; }
+  .section-body.collapsed { max-height: 9000px !important; opacity: 1 !important; }
+  .tab-pane { display: block !important; }
+  .grid-2,.grid-3,.grid-4 { grid-template-columns: 1fr !important; }
+  .hero-grid { grid-template-columns: repeat(2,1fr) !important; }
+}
+
+/* ═══════════════════════════════════════════
+   RESPONSIVE
+═══════════════════════════════════════════ */
+@media (max-width: 1024px) {
+  #toc-sidebar {
+    position: fixed; top: 0; left: -240px; width: 240px; height: 100vh;
+    z-index: 200; transition: left 0.25s ease; box-shadow: 2px 0 12px rgba(0,0,0,0.12);
+  }
+  #toc-sidebar.open { left: 0; }
+  #toc-toggle-btn { display: flex; }
+  #main-content { padding: 24px 20px 100px; }
+  .grid-4 { grid-template-columns: repeat(2,1fr) !important; }
+  .grid-3 { grid-template-columns: repeat(2,1fr) !important; }
+  .hero-grid { grid-template-columns: repeat(2,1fr) !important; }
+}
+@media (max-width: 640px) {
+  .grid-4,.grid-3,.grid-2 { grid-template-columns: 1fr !important; }
+  .hero-grid { grid-template-columns: 1fr !important; }
+  .report-header { padding: 12px 16px; gap: 12px; }
+  .rh-title-text { font-size: 17px; }
+  .rh-logo img { height: 52px; }
+  #main-content { padding: 14px 12px 100px; }
+  .phase-row { grid-template-columns: 70px 1fr 50px; }
+}
+@media (max-width: 480px) {
+  table { font-size: 11px; }
+  th, td { padding: 6px 8px; }
+  .code-block { font-size: 11px; padding: 12px; }
+}
+
+/* FRD extras */
+.module-card { border-left: 4px solid var(--brand); padding-left: 12px; margin-bottom: 20px; }
+.req-id { font-family: monospace; font-size: 11px; color: var(--text-faint); white-space: nowrap; }
+.uc-card { background: var(--card-bg); border: 1px solid var(--card-border); border-radius: 10px; padding: 18px; margin-bottom: 14px; }
+.uc-card h4 { font-size: 13px; font-weight: 700; color: var(--brand); margin: 0 0 10px; }
+.uc-field { display: grid; grid-template-columns: 130px 1fr; gap: 4px 12px; margin-bottom: 5px; font-size: 12px; }
+.uc-label { color: var(--text-faint); font-weight: 600; }
+.uc-value { color: var(--text-muted); }
+.sign-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-top: 16px; }
+.sign-card { border: 1px solid var(--card-border); border-radius: 8px; padding: 16px; text-align: center; }
+.sign-name { font-size: 13px; font-weight: 700; color: var(--text); }
+.sign-role { font-size: 11px; color: var(--text-muted); margin: 4px 0 10px; }
+</style>
+</head>
+<body>
+<div id="progress-bar"></div>
+<div id="search-panel">
+  <div class="search-row">
+    <input id="search-input" type="text" placeholder="Search document…" autocomplete="off"/>
+    <span id="search-count"></span>
+    <button id="search-prev" class="icon-btn" title="Previous">↑</button>
+    <button id="search-next" class="icon-btn" title="Next">↓</button>
+    <button id="search-close" title="Close">✕</button>
+  </div>
+</div>
+
+<div class="report-header">
+  <div class="rh-logo">
+    <img src="http://upload.wikimedia.org/wikipedia/en/0/0c/Mu_Sigma_Logo.jpg" alt="Mu Sigma"/>
+  </div>
+  <div class="rh-title">
+    <div class="rh-title-text">RAG Chatbot — Functional Requirements Document</div>
+    <div class="rh-title-meta"><b>Author:</b> Ved | Mu Sigma &nbsp;|&nbsp; <b>Version:</b> 26.03.01 &nbsp;|&nbsp; <b>Date:</b> 31 March 2026 &nbsp;|&nbsp; <b>Status:</b> <span class="badge b-amber">Draft — Awaiting Approval</span></div>
+  </div>
+  <div class="rh-actions">
+    <button class="icon-btn" id="btn-search" title="Search (Ctrl+K)">🔍</button>
+    <button class="icon-btn" id="btn-dark" title="Toggle dark mode">🌙</button>
+    <button class="icon-btn" id="btn-print" title="Print / Save PDF">🖨️</button>
+  </div>
+</div>
+
+<div id="toc-overlay"></div>
+<button id="toc-toggle-btn">☰ Contents</button>
+<button id="back-to-top">↑ Top</button>
+
+<div class="layout">
+  <div id="toc-sidebar">
+    <div class="toc-label">Contents</div>
+    <nav id="toc-nav"></nav>
+  </div>
+
+  <div id="main-content">
+
+    <!-- HERO -->
+    <div class="hero">
+      <div class="hero-title">RAG Chatbot — FRD v26.03.01 &nbsp;·&nbsp; beta-test project</div>
+      <div class="hero-sub">Complete functional specification: 4 modules · 40+ requirements · 4 use cases · 8 user stories · full traceability</div>
+      <div class="hero-grid">
+        <div class="hero-card" style="background:rgba(59,130,246,0.15);border:1px solid rgba(59,130,246,0.3);">
+          <div class="icon">📋</div><div class="lbl">40+ FRs</div><div class="dsc">Across 4 functional modules</div>
+        </div>
+        <div class="hero-card" style="background:rgba(16,185,129,0.15);border:1px solid rgba(16,185,129,0.3);">
+          <div class="icon">🧩</div><div class="lbl">4 Modules</div><div class="dsc">Doc Mgmt · Q&A · UI · Infra</div>
+        </div>
+        <div class="hero-card" style="background:rgba(124,58,237,0.15);border:1px solid rgba(124,58,237,0.3);">
+          <div class="icon">🎭</div><div class="lbl">4 Use Cases</div><div class="dsc">UC-01 to UC-04 with full flows</div>
+        </div>
+        <div class="hero-card" style="background:rgba(249,115,22,0.15);border:1px solid rgba(249,115,22,0.3);">
+          <div class="icon">📖</div><div class="lbl">8 User Stories</div><div class="dsc">Given / When / Then format</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- S1: EXECUTIVE SUMMARY -->
+    <div class="doc-section" id="exec-summary">
+      <div class="section-header"><div>
+        <div class="section-title">Executive Summary</div>
+        <div class="section-desc">Document control, scope, audience, and terminology</div>
+      </div><span class="section-chevron">▾</span></div>
+      <div class="section-body">
+        <div class="card" style="margin-top:14px;">
+          <h3 style="margin-top:0;">Document Control</h3>
+          <div class="table-wrap"><table>
+            <tbody>
+              <tr class="table-row"><td style="width:200px;"><strong>Document ID</strong></td><td>FRD-BETAPROJECT-RAGCHATBOT-001</td></tr>
+              <tr class="table-row"><td><strong>Version</strong></td><td>1.0 (26.03.01)</td></tr>
+              <tr class="table-row"><td><strong>Date</strong></td><td>2026-03-31</td></tr>
+              <tr class="table-row"><td><strong>Status</strong></td><td><span class="badge b-amber">Draft — Awaiting Approval</span></td></tr>
+              <tr class="table-row"><td><strong>Author</strong></td><td>Ved | Mu Sigma Digital Employee</td></tr>
+              <tr class="table-row"><td><strong>Approved By</strong></td><td>openclaw-control-ui (Product Owner / BSH)</td></tr>
+              <tr class="table-row"><td><strong>Related Docs</strong></td><td>L1 Plan: <code>docs/l1_plan_v1.md</code> · Requirements: <code>delivery/requirements_v1.md</code></td></tr>
+              <tr class="table-row"><td><strong>Repo</strong></td><td><code>https://github.com/harshi12musigma-stack/ragchatbot</code></td></tr>
+            </tbody>
+          </table></div>
+        </div>
+
+        <div class="grid-2" style="margin-top:14px;">
+          <div class="card">
+            <h3 style="margin-top:0;">In Scope</h3>
+            <ul style="font-size:12px;color:var(--text-muted);padding-left:18px;line-height:2;">
+              <li>Document upload — PDF, DOCX, TXT</li>
+              <li>Text chunking and embedding (OpenAI)</li>
+              <li>Vector storage and retrieval (ChromaDB)</li>
+              <li>Conversational Q&A with chat history</li>
+              <li>Source attribution per answer</li>
+              <li>Multi-document support per session</li>
+              <li>Session clear (docs + chat)</li>
+              <li>React UI — upload panel + chat interface</li>
+              <li>Docker + docker-compose deployment</li>
+              <li>REST API with OpenAPI docs</li>
+            </ul>
+          </div>
+          <div class="card">
+            <h3 style="margin-top:0;">Out of Scope (Phase 1)</h3>
+            <ul style="font-size:12px;color:var(--text-muted);padding-left:18px;line-height:2;">
+              <li>User authentication / multi-user sessions</li>
+              <li>Cloud deployment (AWS / GCP / Azure)</li>
+              <li>Streaming responses</li>
+              <li>Fine-tuning or custom model training</li>
+              <li>Persistent chat history across restarts</li>
+              <li>OCR for image-only / scanned PDFs</li>
+              <li>Document management (list / delete individual docs)</li>
+              <li>Mobile / native app</li>
+              <li>Real-time collaborative sessions</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:14px;">
+          <h3 style="margin-top:0;">Terminology</h3>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Term</th><th>Definition</th></tr></thead>
+            <tbody>
+              <tr class="table-row"><td><strong>"Shall"</strong></td><td>Mandatory — system MUST implement this</td></tr>
+              <tr class="table-row"><td><strong>"Should"</strong></td><td>Strongly recommended</td></tr>
+              <tr class="table-row"><td><strong>"May"</strong></td><td>Optional / desirable</td></tr>
+              <tr class="table-row"><td><strong>System</strong></td><td>The RAG Chatbot application (backend + frontend)</td></tr>
+              <tr class="table-row"><td><strong>Document</strong></td><td>Any uploaded file (PDF, DOCX, or TXT)</td></tr>
+              <tr class="table-row"><td><strong>Chunk</strong></td><td>A text segment produced by splitting a document (max 1000 chars)</td></tr>
+              <tr class="table-row"><td><strong>Embedding</strong></td><td>A 1536-dimension vector representation of a chunk (OpenAI text-embedding-3-small)</td></tr>
+              <tr class="table-row"><td><strong>Collection</strong></td><td>The ChromaDB container <code>ragchatbot_docs</code> holding all embedded chunks</td></tr>
+              <tr class="table-row"><td><strong>Session</strong></td><td>Runtime instance — from app start to /clear or server restart</td></tr>
+              <tr class="table-row"><td><strong>RAG</strong></td><td>Retrieval-Augmented Generation — grounding LLM answers in retrieved document chunks</td></tr>
+            </tbody>
+          </table></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- S2: SYSTEM OVERVIEW -->
+    <div class="doc-section" id="system-overview">
+      <div class="section-header"><div>
+        <div class="section-title">System Overview</div>
+        <div class="section-desc">Architecture, component context, and user roles</div>
+      </div><span class="section-chevron">▾</span></div>
+      <div class="section-body">
+        <div class="card" style="margin-top:14px;">
+          <h3 style="margin-top:0;">System Description</h3>
+          <p>The RAG Chatbot is a locally-deployed web application that allows a user to upload one or more documents, then ask natural language questions about their content. The system uses retrieval-augmented generation (RAG) to ground answers in the uploaded documents, with source attribution per answer and full conversational context across follow-up questions.</p>
+          <div class="grid-4" style="margin-top:12px;">
+            <div class="mini-card" style="border-top:3px solid #800000;text-align:center;"><div style="font-size:18px;margin-bottom:4px;">🖥️</div><div style="font-size:11px;font-weight:700;color:var(--text);">React + Vite</div><div style="font-size:10px;color:var(--text-muted);">Frontend UI</div></div>
+            <div class="mini-card" style="border-top:3px solid #3B82F6;text-align:center;"><div style="font-size:18px;margin-bottom:4px;">⚡</div><div style="font-size:11px;font-weight:700;color:var(--text);">FastAPI</div><div style="font-size:10px;color:var(--text-muted);">Backend API</div></div>
+            <div class="mini-card" style="border-top:3px solid #10B981;text-align:center;"><div style="font-size:18px;margin-bottom:4px;">🗄️</div><div style="font-size:11px;font-weight:700;color:var(--text);">ChromaDB</div><div style="font-size:10px;color:var(--text-muted);">Vector Store</div></div>
+            <div class="mini-card" style="border-top:3px solid #F59E0B;text-align:center;"><div style="font-size:18px;margin-bottom:4px;">🤖</div><div style="font-size:11px;font-weight:700;color:var(--text);">OpenAI GPT-4o</div><div style="font-size:10px;color:var(--text-muted);">LLM + Embeddings</div></div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:14px;">
+          <h3 style="margin-top:0;">Component Context Diagram</h3>
+          <div class="table-wrap"><table>
+            <thead><tr><th>External Entity</th><th>Direction</th><th>Description</th></tr></thead>
+            <tbody>
+              <tr class="table-row"><td><strong>User (browser)</strong></td><td>→ Frontend</td><td>Uploads files, sends questions, reads answers</td></tr>
+              <tr class="table-row"><td><strong>Frontend (React)</strong></td><td>↔ Backend (FastAPI)</td><td>REST API calls: <code>/upload</code>, <code>/ask</code>, <code>/clear</code>, <code>/health</code></td></tr>
+              <tr class="table-row"><td><strong>Backend (FastAPI)</strong></td><td>→ OpenAI Embeddings API</td><td>Sends text chunks, receives 1536-dim embedding vectors</td></tr>
+              <tr class="table-row"><td><strong>Backend (FastAPI)</strong></td><td>→ OpenAI Chat API</td><td>Sends prompt + retrieved context, receives grounded answer</td></tr>
+              <tr class="table-row"><td><strong>Backend (FastAPI)</strong></td><td>↔ ChromaDB</td><td>Upserts and queries embedding vectors + metadata</td></tr>
+              <tr class="table-row"><td><strong>ChromaDB</strong></td><td>↔ Local Disk</td><td>Persists collection to <code>./chroma_db/</code> directory</td></tr>
+            </tbody>
+          </table></div>
+          <div class="note note-blue" style="margin-top:12px;"><strong>Phase 1 only:</strong> Single user, no auth, no cloud. All processing stays on the local machine. OpenAI API is the only external dependency.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- S3: FUNCTIONAL DECOMPOSITION -->
+    <div class="doc-section" id="func-decomp">
+      <div class="section-header"><div>
+        <div class="section-title">Functional Decomposition</div>
+        <div class="section-desc">4 modules — 18 feature groups — 40+ requirements</div>
+      </div><span class="section-chevron">▾</span></div>
+      <div class="section-body">
+        <div class="grid-2" style="margin-top:14px;">
+          <div class="card" style="border-top:4px solid #800000;">
+            <h3 style="margin-top:0;color:#800000;">Module 1 — Document Management</h3>
+            <div style="font-size:12px;color:var(--text-muted);line-height:2.2;padding-left:8px;">
+              <div>📁 <strong>F1.1</strong> — File Upload &amp; Validation</div>
+              <div>📄 <strong>F1.2</strong> — Document Parsing (text extraction)</div>
+              <div>✂️ <strong>F1.3</strong> — Text Chunking</div>
+              <div>🔢 <strong>F1.4</strong> — Embedding &amp; Vector Storage</div>
+              <div>🗑️ <strong>F1.5</strong> — Session Clear</div>
+            </div>
+          </div>
+          <div class="card" style="border-top:4px solid #3B82F6;">
+            <h3 style="margin-top:0;color:#3B82F6;">Module 2 — Question Answering</h3>
+            <div style="font-size:12px;color:var(--text-muted);line-height:2.2;padding-left:8px;">
+              <div>❓ <strong>F2.1</strong> — Question Input &amp; Validation</div>
+              <div>💬 <strong>F2.2</strong> — Chat History Management</div>
+              <div>🔁 <strong>F2.3</strong> — Question Condensation (follow-ups)</div>
+              <div>🔍 <strong>F2.4</strong> — Vector Retrieval</div>
+              <div>🤖 <strong>F2.5</strong> — LLM Answer Generation</div>
+              <div>📌 <strong>F2.6</strong> — Source Attribution</div>
+            </div>
+          </div>
+          <div class="card" style="border-top:4px solid #10B981;">
+            <h3 style="margin-top:0;color:#10B981;">Module 3 — User Interface</h3>
+            <div style="font-size:12px;color:var(--text-muted);line-height:2.2;padding-left:8px;">
+              <div>⬆️ <strong>F3.1</strong> — Upload Panel</div>
+              <div>💭 <strong>F3.2</strong> — Chat Window</div>
+              <div>📎 <strong>F3.3</strong> — Source Attribution Display</div>
+              <div>🎛️ <strong>F3.4</strong> — Session Controls</div>
+            </div>
+          </div>
+          <div class="card" style="border-top:4px solid #F59E0B;">
+            <h3 style="margin-top:0;color:#92400E;">Module 4 — Infrastructure &amp; Operations</h3>
+            <div style="font-size:12px;color:var(--text-muted);line-height:2.2;padding-left:8px;">
+              <div>💚 <strong>F4.1</strong> — Health Check</div>
+              <div>📚 <strong>F4.2</strong> — API Documentation</div>
+              <div>⚠️ <strong>F4.3</strong> — Error Handling</div>
+              <div>⚙️ <strong>F4.4</strong> — Environment Configuration</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- S4: FUNCTIONAL REQUIREMENTS -->
+    <div class="doc-section" id="func-reqs">
+      <div class="section-header"><div>
+        <div class="section-title">Functional Requirements</div>
+        <div class="section-desc">40+ requirements across 4 modules with acceptance criteria</div>
+      </div><span class="section-chevron">▾</span></div>
+      <div class="section-body" style="margin-top:14px;">
+        <div class="tab-bar">
+          <button class="tab-btn active" data-tab="fr-m1">Module 1: Document Management</button>
+          <button class="tab-btn" data-tab="fr-m2">Module 2: Question Answering</button>
+          <button class="tab-btn" data-tab="fr-m3">Module 3: User Interface</button>
+          <button class="tab-btn" data-tab="fr-m4">Module 4: Infrastructure</button>
+        </div>
+
+        <!-- MODULE 1 -->
+        <div id="fr-m1" class="tab-pane active">
+          <div class="module-card">
+            <h3>F1.1 — File Upload &amp; Validation</h3>
+            <div class="table-wrap"><table>
+              <thead><tr><th>Req ID</th><th>Requirement</th><th>Priority</th><th>Acceptance Criteria</th></tr></thead>
+              <tbody>
+                <tr class="table-row"><td class="req-id">FR-1.1.1</td><td>The system shall accept file uploads via <code>POST /upload</code> as <code>multipart/form-data</code></td><td><span class="badge b-red">Must</span></td><td>Endpoint accepts .pdf, .docx, .txt and returns 200 with upload metadata</td></tr>
+                <tr class="table-row"><td class="req-id">FR-1.1.2</td><td>The system shall validate file type by extension before processing</td><td><span class="badge b-red">Must</span></td><td>.exe, .zip, .jpg, unsupported extensions → 400 with allowed types listed</td></tr>
+                <tr class="table-row"><td class="req-id">FR-1.1.3</td><td>The system shall reject files exceeding 50MB</td><td><span class="badge b-red">Must</span></td><td>File &gt;50MB → 413 before reading file bytes into memory</td></tr>
+                <tr class="table-row"><td class="req-id">FR-1.1.4</td><td>The system shall assign a unique <code>doc_id</code> (UUID4 short hex) to each upload</td><td><span class="badge b-red">Must</span></td><td>Response includes <code>doc_id</code>; two uploads of same file produce different IDs</td></tr>
+                <tr class="table-row"><td class="req-id">FR-1.1.5</td><td>The system shall return upload metadata: <code>&#123;status, doc_id, filename, chunk_count, elapsed_ms&#125;</code></td><td><span class="badge b-red">Must</span></td><td>All 5 fields present and non-null in every 200 response</td></tr>
+                <tr class="table-row"><td class="req-id">FR-1.1.6</td><td>The system shall handle duplicate uploads by replacing existing chunks</td><td><span class="badge b-red">Must</span></td><td>Re-upload same file → old chunks deleted before new insert; chunk_count reflects new version</td></tr>
+              </tbody>
+            </table></div>
+          </div>
+          <div class="module-card">
+            <h3>F1.2 — Document Parsing</h3>
+            <div class="table-wrap"><table>
+              <thead><tr><th>Req ID</th><th>Requirement</th><th>Priority</th><th>Acceptance Criteria</th></tr></thead>
+              <tbody>
+                <tr class="table-row"><td class="req-id">FR-1.2.1</td><td>The system shall extract text from PDF files using PyMuPDF</td><td><span class="badge b-red">Must</span></td><td>5-page PDF → text extracted from all pages with page number metadata</td></tr>
+                <tr class="table-row"><td class="req-id">FR-1.2.2</td><td>The system shall extract text from DOCX files using python-docx</td><td><span class="badge b-red">Must</span></td><td>DOCX with headings, paragraphs, tables → full text extracted</td></tr>
+                <tr class="table-row"><td class="req-id">FR-1.2.3</td><td>The system shall extract text from TXT files directly as UTF-8</td><td><span class="badge b-red">Must</span></td><td>Plain text file → content read and chunked correctly</td></tr>
+                <tr class="table-row"><td class="req-id">FR-1.2.4</td><td>The system shall return 400 if no text can be extracted</td><td><span class="badge b-red">Must</span></td><td>Image-only PDF → 400 "No text could be extracted from this document"</td></tr>
+                <tr class="table-row"><td class="req-id">FR-1.2.5</td><td>The system shall preserve page number metadata during PDF extraction</td><td><span class="badge b-red">Must</span></td><td>Each chunk includes <code>page</code> field matching source page number (1-based)</td></tr>
+              </tbody>
+            </table></div>
+          </div>
+          <div class="module-card">
+            <h3>F1.3 — Text Chunking</h3>
+            <div class="table-wrap"><table>
+              <thead><tr><th>Req ID</th><th>Requirement</th><th>Priority</th><th>Acceptance Criteria</th></tr></thead>
+              <tbody>
+                <tr class="table-row"><td class="req-id">FR-1.3.1</td><td>The system shall split text using LangChain RecursiveCharacterTextSplitter</td><td><span class="badge b-red">Must</span></td><td>Output is List[Document] with text content and metadata</td></tr>
+                <tr class="table-row"><td class="req-id">FR-1.3.2</td><td>Chunk size shall be 1000 characters</td><td><span class="badge b-red">Must</span></td><td>No individual chunk exceeds 1000 characters</td></tr>
+                <tr class="table-row"><td class="req-id">FR-1.3.3</td><td>Chunk overlap shall be 200 characters</td><td><span class="badge b-red">Must</span></td><td>Last 200 chars of chunk N appear at start of chunk N+1</td></tr>
+                <tr class="table-row"><td class="req-id">FR-1.3.4</td><td>Each chunk shall carry metadata: <code>doc_id, filename, page, chunk_index, upload_timestamp</code></td><td><span class="badge b-red">Must</span></td><td>All 5 metadata fields populated on every ChromaDB entry</td></tr>
+              </tbody>
+            </table></div>
+          </div>
+          <div class="module-card">
+            <h3>F1.4 — Embedding &amp; Vector Storage</h3>
+            <div class="table-wrap"><table>
+              <thead><tr><th>Req ID</th><th>Requirement</th><th>Priority</th><th>Acceptance Criteria</th></tr></thead>
+              <tbody>
+                <tr class="table-row"><td class="req-id">FR-1.4.1</td><td>The system shall embed each chunk using OpenAI <code>text-embedding-3-small</code></td><td><span class="badge b-red">Must</span></td><td>Each chunk → 1536-dim vector stored in ChromaDB</td></tr>
+                <tr class="table-row"><td class="req-id">FR-1.4.2</td><td>The system shall store embeddings in a ChromaDB collection named <code>ragchatbot_docs</code></td><td><span class="badge b-red">Must</span></td><td>Collection exists with correct entry count after upload</td></tr>
+                <tr class="table-row"><td class="req-id">FR-1.4.3</td><td>The system shall use deterministic chunk IDs: <code>&#123;doc_id&#125;_&#123;chunk_index&#125;</code></td><td><span class="badge b-red">Must</span></td><td>Re-uploading same content produces same IDs → upsert is idempotent</td></tr>
+                <tr class="table-row"><td class="req-id">FR-1.4.4</td><td>ChromaDB collection shall persist to disk at <code>CHROMA_PERSIST_DIR</code></td><td><span class="badge b-red">Must</span></td><td>Server restart → collection still queryable; no re-upload needed</td></tr>
+                <tr class="table-row"><td class="req-id">FR-1.4.5</td><td>The system shall log embedding elapsed time per upload</td><td><span class="badge b-amber">Should</span></td><td><code>elapsed_ms</code> in response reflects actual time from receipt to ChromaDB confirm</td></tr>
+              </tbody>
+            </table></div>
+          </div>
+          <div class="module-card">
+            <h3>F1.5 — Session Clear</h3>
+            <div class="table-wrap"><table>
+              <thead><tr><th>Req ID</th><th>Requirement</th><th>Priority</th><th>Acceptance Criteria</th></tr></thead>
+              <tbody>
+                <tr class="table-row"><td class="req-id">FR-1.5.1</td><td>The system shall delete all chunks from ChromaDB on <code>POST /clear</code></td><td><span class="badge b-red">Must</span></td><td>After /clear, ChromaDB collection is empty</td></tr>
+                <tr class="table-row"><td class="req-id">FR-1.5.2</td><td>The system shall recreate the empty collection immediately after deletion</td><td><span class="badge b-red">Must</span></td><td>Subsequent /upload succeeds without server restart</td></tr>
+                <tr class="table-row"><td class="req-id">FR-1.5.3</td><td>The system shall return <code>&#123;status: "success", message: "All documents cleared"&#125;</code></td><td><span class="badge b-red">Must</span></td><td>200 response with both fields on every successful clear</td></tr>
+              </tbody>
+            </table></div>
+          </div>
+        </div>
+
+        <!-- MODULE 2 -->
+        <div id="fr-m2" class="tab-pane">
+          <div class="module-card">
+            <h3>F2.1 — Question Input &amp; Validation</h3>
+            <div class="table-wrap"><table>
+              <thead><tr><th>Req ID</th><th>Requirement</th><th>Priority</th><th>Acceptance Criteria</th></tr></thead>
+              <tbody>
+                <tr class="table-row"><td class="req-id">FR-2.1.1</td><td>The system shall accept questions via <code>POST /ask</code> with body <code>&#123;question: str, chat_history: [...]&#125;</code></td><td><span class="badge b-red">Must</span></td><td>Valid request with non-empty question returns 200 with answer</td></tr>
+                <tr class="table-row"><td class="req-id">FR-2.1.2</td><td>The system shall reject empty or whitespace-only questions</td><td><span class="badge b-red">Must</span></td><td>Blank question → 400 "Question cannot be empty"</td></tr>
+                <tr class="table-row"><td class="req-id">FR-2.1.3</td><td>The system shall return 400 if no documents are uploaded when a question is asked</td><td><span class="badge b-red">Must</span></td><td>Empty ChromaDB → 400 "No documents uploaded yet. Please upload a document first."</td></tr>
+              </tbody>
+            </table></div>
+          </div>
+          <div class="module-card">
+            <h3>F2.2 — Chat History Management</h3>
+            <div class="table-wrap"><table>
+              <thead><tr><th>Req ID</th><th>Requirement</th><th>Priority</th><th>Acceptance Criteria</th></tr></thead>
+              <tbody>
+                <tr class="table-row"><td class="req-id">FR-2.2.1</td><td>The system shall accept chat history as <code>[&#123;role: "human"|"assistant", content: str&#125;]</code></td><td><span class="badge b-red">Must</span></td><td>10-turn history accepted without error</td></tr>
+                <tr class="table-row"><td class="req-id">FR-2.2.2</td><td>The system shall pass chat history to LangChain in correct message format</td><td><span class="badge b-red">Must</span></td><td>LangChain receives correctly typed HumanMessage / AIMessage objects</td></tr>
+                <tr class="table-row"><td class="req-id">FR-2.2.3</td><td>Chat history shall be held client-side — not persisted on the server</td><td><span class="badge b-red">Must</span></td><td>Server restart resets to empty history; frontend maintains state in component</td></tr>
+              </tbody>
+            </table></div>
+          </div>
+          <div class="module-card">
+            <h3>F2.3 — Question Condensation</h3>
+            <div class="table-wrap"><table>
+              <thead><tr><th>Req ID</th><th>Requirement</th><th>Priority</th><th>Acceptance Criteria</th></tr></thead>
+              <tbody>
+                <tr class="table-row"><td class="req-id">FR-2.3.1</td><td>The system shall condense follow-up questions using chat history before retrieval</td><td><span class="badge b-red">Must</span></td><td>"Can you elaborate on that?" with prior context → condensed to self-contained query before vector search</td></tr>
+                <tr class="table-row"><td class="req-id">FR-2.3.2</td><td>Condensation shall use LangChain's ConversationalRetrievalChain condense step</td><td><span class="badge b-red">Must</span></td><td>Chain logs show condensed question used for retrieval — not raw follow-up text</td></tr>
+              </tbody>
+            </table></div>
+          </div>
+          <div class="module-card">
+            <h3>F2.4 — Vector Retrieval</h3>
+            <div class="table-wrap"><table>
+              <thead><tr><th>Req ID</th><th>Requirement</th><th>Priority</th><th>Acceptance Criteria</th></tr></thead>
+              <tbody>
+                <tr class="table-row"><td class="req-id">FR-2.4.1</td><td>The system shall retrieve the top 4 most semantically similar chunks per question</td><td><span class="badge b-red">Must</span></td><td>Sources list has exactly 4 entries (or fewer if &lt;4 chunks in collection)</td></tr>
+                <tr class="table-row"><td class="req-id">FR-2.4.2</td><td>Retrieval shall use ChromaDB cosine similarity search</td><td><span class="badge b-red">Must</span></td><td>Returned chunks are semantically relevant to the question</td></tr>
+                <tr class="table-row"><td class="req-id">FR-2.4.3</td><td>Retrieved chunks shall include full metadata: <code>filename, page, chunk_index, chunk_text</code></td><td><span class="badge b-red">Must</span></td><td>All 4 metadata fields present on every source entry</td></tr>
+              </tbody>
+            </table></div>
+          </div>
+          <div class="module-card">
+            <h3>F2.5 — LLM Answer Generation</h3>
+            <div class="table-wrap"><table>
+              <thead><tr><th>Req ID</th><th>Requirement</th><th>Priority</th><th>Acceptance Criteria</th></tr></thead>
+              <tbody>
+                <tr class="table-row"><td class="req-id">FR-2.5.1</td><td>The system shall generate answers using OpenAI GPT-4o</td><td><span class="badge b-red">Must</span></td><td>Non-empty answer string returned for any valid question with relevant context</td></tr>
+                <tr class="table-row"><td class="req-id">FR-2.5.2</td><td>The system shall ground answers in retrieved chunks only — not general knowledge</td><td><span class="badge b-red">Must</span></td><td>LLM prompt instructs: "Answer only from the provided context. If not found, say so."</td></tr>
+                <tr class="table-row"><td class="req-id">FR-2.5.3</td><td>The system shall return 502 if OpenAI API is unavailable</td><td><span class="badge b-red">Must</span></td><td>OpenAI failure → 502 "LLM service temporarily unavailable. Try again."</td></tr>
+              </tbody>
+            </table></div>
+          </div>
+          <div class="module-card">
+            <h3>F2.6 — Source Attribution</h3>
+            <div class="table-wrap"><table>
+              <thead><tr><th>Req ID</th><th>Requirement</th><th>Priority</th><th>Acceptance Criteria</th></tr></thead>
+              <tbody>
+                <tr class="table-row"><td class="req-id">FR-2.6.1</td><td>The system shall return source chunks alongside every answer</td><td><span class="badge b-red">Must</span></td><td><code>sources</code> field present in every /ask 200 response</td></tr>
+                <tr class="table-row"><td class="req-id">FR-2.6.2</td><td>Each source entry shall include: <code>filename, page, chunk_index, chunk_text</code> (first 300 chars)</td><td><span class="badge b-red">Must</span></td><td>All 4 fields present and non-null in every source entry</td></tr>
+                <tr class="table-row"><td class="req-id">FR-2.6.3</td><td>Source filename shall match the original uploaded filename exactly</td><td><span class="badge b-red">Must</span></td><td>File uploaded as <code>contract.pdf</code> → source shows <code>contract.pdf</code>, not a path or ID</td></tr>
+              </tbody>
+            </table></div>
+          </div>
+        </div>
+
+        <!-- MODULE 3 -->
+        <div id="fr-m3" class="tab-pane">
+          <div class="module-card">
+            <h3>F3.1 — Upload Panel</h3>
+            <div class="table-wrap"><table>
+              <thead><tr><th>Req ID</th><th>Requirement</th><th>Priority</th><th>Acceptance Criteria</th></tr></thead>
+              <tbody>
+                <tr class="table-row"><td class="req-id">FR-3.1.1</td><td>The system shall provide a drag-and-drop file upload zone</td><td><span class="badge b-red">Must</span></td><td>Dragging file onto zone triggers upload without clicking a button</td></tr>
+                <tr class="table-row"><td class="req-id">FR-3.1.2</td><td>The system shall allow click-to-browse file selection</td><td><span class="badge b-red">Must</span></td><td>Clicking upload zone opens OS file picker</td></tr>
+                <tr class="table-row"><td class="req-id">FR-3.1.3</td><td>The system shall display upload status per file: uploading / success / error</td><td><span class="badge b-red">Must</span></td><td>File shows spinner (uploading), green tick (success), red message (error)</td></tr>
+                <tr class="table-row"><td class="req-id">FR-3.1.4</td><td>The system shall display filename and chunk count after successful upload</td><td><span class="badge b-red">Must</span></td><td>Shows: "contract.pdf — 42 chunks"</td></tr>
+                <tr class="table-row"><td class="req-id">FR-3.1.5</td><td>The system shall display an inline error for rejected files</td><td><span class="badge b-red">Must</span></td><td>Uploading .exe shows: "Unsupported file type. Allowed: PDF, DOCX, TXT"</td></tr>
+              </tbody>
+            </table></div>
+          </div>
+          <div class="module-card">
+            <h3>F3.2 — Chat Window</h3>
+            <div class="table-wrap"><table>
+              <thead><tr><th>Req ID</th><th>Requirement</th><th>Priority</th><th>Acceptance Criteria</th></tr></thead>
+              <tbody>
+                <tr class="table-row"><td class="req-id">FR-3.2.1</td><td>The system shall display a scrollable conversation thread</td><td><span class="badge b-red">Must</span></td><td>Thread auto-scrolls to latest message; older messages visible by scrolling up</td></tr>
+                <tr class="table-row"><td class="req-id">FR-3.2.2</td><td>The system shall provide a text input field and Send button (Enter key also submits)</td><td><span class="badge b-red">Must</span></td><td>Both click and Enter trigger submission</td></tr>
+                <tr class="table-row"><td class="req-id">FR-3.2.3</td><td>The system shall display a loading indicator while awaiting an answer</td><td><span class="badge b-red">Must</span></td><td>Spinner visible between question submission and answer arrival</td></tr>
+                <tr class="table-row"><td class="req-id">FR-3.2.4</td><td>User and assistant messages shall be visually distinct</td><td><span class="badge b-red">Must</span></td><td>User = right-aligned blue; Assistant = left-aligned grey</td></tr>
+                <tr class="table-row"><td class="req-id">FR-3.2.5</td><td>The input field shall be disabled while a request is in flight</td><td><span class="badge b-red">Must</span></td><td>Cannot submit second question before first answer arrives</td></tr>
+                <tr class="table-row"><td class="req-id">FR-3.2.6</td><td>The system shall display an inline error in the chat if /ask returns an error</td><td><span class="badge b-red">Must</span></td><td>API error → red error message in thread, input re-enabled</td></tr>
+              </tbody>
+            </table></div>
+          </div>
+          <div class="module-card">
+            <h3>F3.3 — Source Attribution Display</h3>
+            <div class="table-wrap"><table>
+              <thead><tr><th>Req ID</th><th>Requirement</th><th>Priority</th><th>Acceptance Criteria</th></tr></thead>
+              <tbody>
+                <tr class="table-row"><td class="req-id">FR-3.3.1</td><td>The system shall display source chunks below each assistant answer</td><td><span class="badge b-red">Must</span></td><td>Each answer has a collapsible "Sources" section</td></tr>
+                <tr class="table-row"><td class="req-id">FR-3.3.2</td><td>Each source entry shall show: filename, page number, and text excerpt</td><td><span class="badge b-red">Must</span></td><td>Shows: "📄 contract.pdf — Page 3" + first 300 chars of chunk</td></tr>
+                <tr class="table-row"><td class="req-id">FR-3.3.3</td><td>Sources section shall be collapsed by default, expandable on click</td><td><span class="badge b-amber">Should</span></td><td>Click "Show sources (4)" → expands to show all source cards</td></tr>
+              </tbody>
+            </table></div>
+          </div>
+          <div class="module-card">
+            <h3>F3.4 — Session Controls</h3>
+            <div class="table-wrap"><table>
+              <thead><tr><th>Req ID</th><th>Requirement</th><th>Priority</th><th>Acceptance Criteria</th></tr></thead>
+              <tbody>
+                <tr class="table-row"><td class="req-id">FR-3.4.1</td><td>The system shall provide a "Clear Session" button in the header</td><td><span class="badge b-red">Must</span></td><td>Button visible at all times</td></tr>
+                <tr class="table-row"><td class="req-id">FR-3.4.2</td><td>Clicking "Clear Session" shall call /clear, reset chat history and docs list in UI</td><td><span class="badge b-red">Must</span></td><td>After clear: empty chat, empty upload list, input disabled until new upload</td></tr>
+                <tr class="table-row"><td class="req-id">FR-3.4.3</td><td>The system shall ask for confirmation before clearing</td><td><span class="badge b-amber">Should</span></td><td>Dialog: "This will remove all uploaded documents and chat history. Continue?"</td></tr>
+              </tbody>
+            </table></div>
+          </div>
+        </div>
+
+        <!-- MODULE 4 -->
+        <div id="fr-m4" class="tab-pane">
+          <div class="module-card">
+            <h3>F4.1 — Health Check</h3>
+            <div class="table-wrap"><table>
+              <thead><tr><th>Req ID</th><th>Requirement</th><th>Priority</th><th>Acceptance Criteria</th></tr></thead>
+              <tbody>
+                <tr class="table-row"><td class="req-id">FR-4.1.1</td><td>The system shall expose <code>GET /health</code> returning <code>&#123;status: "ok"&#125;</code></td><td><span class="badge b-red">Must</span></td><td>Returns 200 with no auth required</td></tr>
+              </tbody>
+            </table></div>
+          </div>
+          <div class="module-card">
+            <h3>F4.2 — API Documentation</h3>
+            <div class="table-wrap"><table>
+              <thead><tr><th>Req ID</th><th>Requirement</th><th>Priority</th><th>Acceptance Criteria</th></tr></thead>
+              <tbody>
+                <tr class="table-row"><td class="req-id">FR-4.2.1</td><td>The system shall auto-generate OpenAPI docs at <code>GET /docs</code></td><td><span class="badge b-red">Must</span></td><td>FastAPI Swagger UI accessible at <code>http://localhost:8000/docs</code></td></tr>
+                <tr class="table-row"><td class="req-id">FR-4.2.2</td><td>All endpoints shall have description, request schema, and response schema in OpenAPI spec</td><td><span class="badge b-red">Must</span></td><td>/upload, /ask, /clear, /health all documented with example request/response</td></tr>
+              </tbody>
+            </table></div>
+          </div>
+          <div class="module-card">
+            <h3>F4.3 — Error Handling</h3>
+            <div class="table-wrap"><table>
+              <thead><tr><th>Req ID</th><th>Requirement</th><th>Priority</th><th>Acceptance Criteria</th></tr></thead>
+              <tbody>
+                <tr class="table-row"><td class="req-id">FR-4.3.1</td><td>All API errors shall return <code>&#123;error: str, detail: str, status_code: int&#125;</code></td><td><span class="badge b-red">Must</span></td><td>No bare HTML error pages or unhandled tracebacks reach the client</td></tr>
+                <tr class="table-row"><td class="req-id">FR-4.3.2</td><td>Client errors shall return 4xx</td><td><span class="badge b-red">Must</span></td><td>Invalid input, unsupported type, empty question → 4xx, not 500</td></tr>
+                <tr class="table-row"><td class="req-id">FR-4.3.3</td><td>Unexpected server errors shall return 500</td><td><span class="badge b-red">Must</span></td><td>Uncaught exception → 500 with generic message; full traceback logged server-side only</td></tr>
+                <tr class="table-row"><td class="req-id">FR-4.3.4</td><td>Downstream API failures (OpenAI) shall return 502</td><td><span class="badge b-red">Must</span></td><td>OpenAI timeout / rate limit → 502, not 500</td></tr>
+                <tr class="table-row"><td class="req-id">FR-4.3.5</td><td>Oversized file uploads shall return 413</td><td><span class="badge b-red">Must</span></td><td>File &gt;50MB → 413 before reading bytes into memory</td></tr>
+              </tbody>
+            </table></div>
+          </div>
+          <div class="module-card">
+            <h3>F4.4 — Environment Configuration</h3>
+            <div class="table-wrap"><table>
+              <thead><tr><th>Req ID</th><th>Requirement</th><th>Priority</th><th>Acceptance Criteria</th></tr></thead>
+              <tbody>
+                <tr class="table-row"><td class="req-id">FR-4.4.1</td><td>All configuration shall be via environment variables — no hardcoded values</td><td><span class="badge b-red">Must</span></td><td>No API keys, URLs, or paths in source code</td></tr>
+                <tr class="table-row"><td class="req-id">FR-4.4.2</td><td>The system shall fail fast on startup if <code>OPENAI_API_KEY</code> is missing</td><td><span class="badge b-red">Must</span></td><td>Missing key → clear startup error, not a runtime crash on first request</td></tr>
+                <tr class="table-row"><td class="req-id">FR-4.4.3</td><td><code>.env.example</code> shall document all required and optional environment variables</td><td><span class="badge b-red">Must</span></td><td>File includes: OPENAI_API_KEY, CHROMA_PERSIST_DIR, BACKEND_URL, VITE_BACKEND_URL with descriptions</td></tr>
+              </tbody>
+            </table></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- S5: WORKFLOWS -->
+    <div class="doc-section" id="workflows">
+      <div class="section-header"><div>
+        <div class="section-title">Workflows &amp; State Transitions</div>
+        <div class="section-desc">Document session lifecycle and question flow</div>
+      </div><span class="section-chevron">▾</span></div>
+      <div class="section-body">
+        <div class="card" style="margin-top:14px;">
+          <h3 style="margin-top:0;">Document Session Lifecycle</h3>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Current State</th><th>Event / Trigger</th><th>Next State</th><th>System Action</th></tr></thead>
+            <tbody>
+              <tr class="table-row"><td><span class="badge b-slate">Empty</span></td><td>User uploads valid file</td><td><span class="badge b-blue">Processing</span></td><td>Parse → chunk → embed → store in ChromaDB</td></tr>
+              <tr class="table-row"><td><span class="badge b-blue">Processing</span></td><td>Ingestion complete</td><td><span class="badge b-green">Ready (has docs)</span></td><td>Return upload metadata to UI; input enabled</td></tr>
+              <tr class="table-row"><td><span class="badge b-blue">Processing</span></td><td>Ingestion fails</td><td><span class="badge b-red">Error</span></td><td>Return 400/500; no partial data stored in ChromaDB</td></tr>
+              <tr class="table-row"><td><span class="badge b-green">Ready</span></td><td>User uploads another file</td><td><span class="badge b-blue">Processing (multi-doc)</span></td><td>Add new doc chunks to existing collection</td></tr>
+              <tr class="table-row"><td><span class="badge b-green">Ready</span></td><td>User asks question</td><td><span class="badge b-purple">Answering</span></td><td>Retrieve → generate → return answer + sources</td></tr>
+              <tr class="table-row"><td><span class="badge b-purple">Answering</span></td><td>Answer generated</td><td><span class="badge b-green">Ready</span></td><td>Append to chat history; re-enable input</td></tr>
+              <tr class="table-row"><td><span class="badge b-purple">Answering</span></td><td>API error</td><td><span class="badge b-green">Ready (error state)</span></td><td>Show inline error; re-enable input</td></tr>
+              <tr class="table-row"><td><span class="badge b-green">Ready</span></td><td>User clicks Clear</td><td><span class="badge b-slate">Empty</span></td><td>Delete collection, recreate empty, reset UI</td></tr>
+            </tbody>
+          </table></div>
+        </div>
+        <div class="card" style="margin-top:14px;">
+          <h3 style="margin-top:0;">Question Flow — Step by Step</h3>
+          <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-top:12px;text-align:center;">
+            <div class="mini-card"><div style="font-size:18px;">👤</div><div style="font-size:11px;font-weight:700;margin:4px 0;color:var(--text);">1. User types</div><div style="font-size:10px;color:var(--text-muted);">Question + Send</div></div>
+            <div class="mini-card"><div style="font-size:18px;">✂️</div><div style="font-size:11px;font-weight:700;margin:4px 0;color:var(--text);">2. Condense</div><div style="font-size:10px;color:var(--text-muted);">LangChain rewrites follow-up to standalone query</div></div>
+            <div class="mini-card"><div style="font-size:18px;">🔍</div><div style="font-size:11px;font-weight:700;margin:4px 0;color:var(--text);">3. Retrieve</div><div style="font-size:10px;color:var(--text-muted);">ChromaDB top-4 similarity search</div></div>
+            <div class="mini-card"><div style="font-size:18px;">🤖</div><div style="font-size:11px;font-weight:700;margin:4px 0;color:var(--text);">4. Generate</div><div style="font-size:10px;color:var(--text-muted);">GPT-4o prompt with context chunks</div></div>
+            <div class="mini-card"><div style="font-size:18px;">📌</div><div style="font-size:11px;font-weight:700;margin:4px 0;color:var(--text);">5. Return</div><div style="font-size:10px;color:var(--text-muted);">Answer + sources to UI</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- S6: BUSINESS RULES -->
+    <div class="doc-section" id="business-rules">
+      <div class="section-header"><div>
+        <div class="section-title">Business Rules</div>
+        <div class="section-desc">6 core rules governing system behaviour</div>
+      </div><span class="section-chevron">▾</span></div>
+      <div class="section-body">
+        <div class="card" style="margin-top:14px;">
+          <div class="table-wrap"><table>
+            <thead><tr><th>Rule ID</th><th>Business Rule</th><th>Logic / Condition</th><th>Priority</th></tr></thead>
+            <tbody>
+              <tr class="table-row"><td class="req-id">BRL-01</td><td><strong>No question without documents</strong></td><td>If ChromaDB collection is empty → reject /ask with 400</td><td><span class="badge b-red">Must</span></td></tr>
+              <tr class="table-row"><td class="req-id">BRL-02</td><td><strong>Answers grounded in documents only</strong></td><td>LLM prompt: "Answer only from provided context. If not found, say so."</td><td><span class="badge b-red">Must</span></td></tr>
+              <tr class="table-row"><td class="req-id">BRL-03</td><td><strong>One active session (Phase 1)</strong></td><td>No per-user session isolation — all uploads go to one collection</td><td><span class="badge b-red">Must</span></td></tr>
+              <tr class="table-row"><td class="req-id">BRL-04</td><td><strong>Duplicate upload replaces, not appends</strong></td><td>Re-uploading same file deletes existing chunks by doc_id prefix before insert</td><td><span class="badge b-red">Must</span></td></tr>
+              <tr class="table-row"><td class="req-id">BRL-05</td><td><strong>Clear is irreversible</strong></td><td>/clear deletes all chunks — no undo, no soft delete, no confirmation bypass</td><td><span class="badge b-red">Must</span></td></tr>
+              <tr class="table-row"><td class="req-id">BRL-06</td><td><strong>File type validated by extension only</strong></td><td>No MIME type sniffing — validate by file extension (.pdf / .docx / .txt)</td><td><span class="badge b-red">Must</span></td></tr>
+            </tbody>
+          </table></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- S7: ERROR HANDLING -->
+    <div class="doc-section" id="error-handling">
+      <div class="section-header"><div>
+        <div class="section-title">Error Handling &amp; Validation</div>
+        <div class="section-desc">Input validation rules and system error scenarios</div>
+      </div><span class="section-chevron">▾</span></div>
+      <div class="section-body">
+        <div class="card" style="margin-top:14px;">
+          <h3 style="margin-top:0;">Input Validation Rules</h3>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Field</th><th>Rule</th><th>Error Response</th></tr></thead>
+            <tbody>
+              <tr class="table-row"><td>Upload file extension</td><td>Must be .pdf, .docx, or .txt</td><td>400 <code>"Unsupported file type. Allowed: pdf, docx, txt"</code></td></tr>
+              <tr class="table-row"><td>Upload file size</td><td>Must be ≤ 50MB</td><td>413 <code>"File too large. Max size: 50MB"</code></td></tr>
+              <tr class="table-row"><td>Question string</td><td>Non-empty, non-whitespace</td><td>400 <code>"Question cannot be empty"</code></td></tr>
+              <tr class="table-row"><td>chat_history</td><td>List of <code>&#123;role, content&#125;</code> objects</td><td>422 FastAPI validation error</td></tr>
+              <tr class="table-row"><td>ChromaDB collection</td><td>Must be non-empty before /ask</td><td>400 <code>"No documents uploaded yet"</code></td></tr>
+            </tbody>
+          </table></div>
+        </div>
+        <div class="card" style="margin-top:14px;">
+          <h3 style="margin-top:0;">System Error Handling</h3>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Scenario</th><th>HTTP Code</th><th>User-Facing Message</th><th>Logged</th></tr></thead>
+            <tbody>
+              <tr class="table-row"><td>No text extractable from PDF</td><td><span class="badge b-amber">400</span></td><td>"No text could be extracted from this document"</td><td>Warning</td></tr>
+              <tr class="table-row"><td>OpenAI API rate limit</td><td><span class="badge b-amber">502</span></td><td>"LLM service temporarily unavailable. Try again."</td><td>Error</td></tr>
+              <tr class="table-row"><td>OpenAI API invalid key</td><td><span class="badge b-amber">502</span></td><td>"LLM service configuration error. Contact admin."</td><td>Critical</td></tr>
+              <tr class="table-row"><td>ChromaDB write failure</td><td><span class="badge b-red">500</span></td><td>"Document storage failed. Please try again."</td><td>Error</td></tr>
+              <tr class="table-row"><td>ChromaDB collection not found on query</td><td><span class="badge b-amber">400</span></td><td>"No documents uploaded yet."</td><td>Info</td></tr>
+              <tr class="table-row"><td>Unexpected server error</td><td><span class="badge b-red">500</span></td><td>"An unexpected error occurred." (no traceback)</td><td>Error (full traceback server-side)</td></tr>
+            </tbody>
+          </table></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- S8: USE CASES -->
+    <div class="doc-section" id="use-cases">
+      <div class="section-header"><div>
+        <div class="section-title">Use Cases</div>
+        <div class="section-desc">4 use cases covering all primary user flows</div>
+      </div><span class="section-chevron">▾</span></div>
+      <div class="section-body" style="margin-top:14px;">
+        <div class="uc-card">
+          <h4>UC-01 — Upload and Query a Single Document</h4>
+          <div class="uc-field"><span class="uc-label">Pre-conditions</span><span class="uc-value">App running; no documents uploaded; ChromaDB collection empty</span></div>
+          <div class="uc-field"><span class="uc-label">Trigger</span><span class="uc-value">User drags a PDF onto the upload zone</span></div>
+          <div class="uc-field"><span class="uc-label">Main Flow</span><span class="uc-value">1. User drags PDF → 2. POST /upload → 3. Parse, chunk, embed, store → 4. UI shows "contract.pdf — 42 chunks" → 5. User types question → 6. Retrieve top-4 chunks → 7. GPT-4o generates answer → 8. UI shows answer + sources</span></div>
+          <div class="uc-field"><span class="uc-label">Alternate Flow</span><span class="uc-value">File rejected: step 2 returns 400 → UI shows inline error, no upload recorded</span></div>
+          <div class="uc-field"><span class="uc-label">Exception Flow</span><span class="uc-value">OpenAI unavailable at step 7 → UI shows "LLM service unavailable", input re-enabled</span></div>
+          <div class="uc-field"><span class="uc-label">Related FRs</span><span class="uc-value">FR-1.1.1–1.5.3, FR-2.1.1–2.6.3, FR-3.1.1–3.3.3</span></div>
+        </div>
+        <div class="uc-card">
+          <h4>UC-02 — Ask a Follow-Up Question</h4>
+          <div class="uc-field"><span class="uc-label">Pre-conditions</span><span class="uc-value">At least one document uploaded; at least one prior Q&A turn in chat thread</span></div>
+          <div class="uc-field"><span class="uc-label">Trigger</span><span class="uc-value">User types "Can you give me more detail on that?"</span></div>
+          <div class="uc-field"><span class="uc-label">Main Flow</span><span class="uc-value">1. POST /ask with question + chat_history → 2. LangChain condenses to self-contained query → 3. Condensed query used for ChromaDB retrieval → 4. Answer contextually continues prior conversation</span></div>
+          <div class="uc-field"><span class="uc-label">Exception Flow</span><span class="uc-value">Chat history malformed → 422 FastAPI validation error</span></div>
+          <div class="uc-field"><span class="uc-label">Related FRs</span><span class="uc-value">FR-2.2.1–2.3.2</span></div>
+        </div>
+        <div class="uc-card">
+          <h4>UC-03 — Multi-Document Cross-Query</h4>
+          <div class="uc-field"><span class="uc-label">Pre-conditions</span><span class="uc-value">App running with empty collection</span></div>
+          <div class="uc-field"><span class="uc-label">Trigger</span><span class="uc-value">User uploads two documents, then asks a question spanning both</span></div>
+          <div class="uc-field"><span class="uc-label">Main Flow</span><span class="uc-value">1. Upload doc A → success → 2. Upload doc B → success → 3. Ask cross-document question → 4. Retrieval returns chunks from both docs → 5. Answer synthesises across both</span></div>
+          <div class="uc-field"><span class="uc-label">Exception Flow</span><span class="uc-value">One upload fails → other doc still queryable; partial collection not corrupted</span></div>
+          <div class="uc-field"><span class="uc-label">Post-conditions</span><span class="uc-value">Sources panel shows chunks from both documents with correct filenames</span></div>
+          <div class="uc-field"><span class="uc-label">Related FRs</span><span class="uc-value">FR-1.1.6, FR-2.4.1–2.4.3, FR-2.6.1–2.6.3</span></div>
+        </div>
+        <div class="uc-card">
+          <h4>UC-04 — Clear Session</h4>
+          <div class="uc-field"><span class="uc-label">Pre-conditions</span><span class="uc-value">One or more documents uploaded; chat history present</span></div>
+          <div class="uc-field"><span class="uc-label">Trigger</span><span class="uc-value">User clicks "Clear Session" button in header</span></div>
+          <div class="uc-field"><span class="uc-label">Main Flow</span><span class="uc-value">1. Confirmation dialog shown → 2. User confirms → 3. POST /clear → 4. ChromaDB deleted and recreated → 5. UI resets: empty chat, empty upload list, input disabled</span></div>
+          <div class="uc-field"><span class="uc-label">Alternate Flow</span><span class="uc-value">User cancels confirmation → no action taken; state unchanged</span></div>
+          <div class="uc-field"><span class="uc-label">Related FRs</span><span class="uc-value">FR-1.5.1–1.5.3, FR-3.4.1–3.4.3</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- S9: USER STORIES -->
+    <div class="doc-section" id="user-stories">
+      <div class="section-header"><div>
+        <div class="section-title">User Stories</div>
+        <div class="section-desc">8 stories in Given / When / Then format</div>
+      </div><span class="section-chevron">▾</span></div>
+      <div class="section-body">
+        <div class="card" style="margin-top:14px;">
+          <div class="table-wrap"><table>
+            <thead><tr><th>ID</th><th>User Story</th><th>Acceptance Criteria</th><th>Related FRs</th><th>Priority</th></tr></thead>
+            <tbody>
+              <tr class="table-row"><td class="req-id">US-001</td><td>As an operator, I want to upload a PDF so I can ask questions about it</td><td><strong>Given</strong> valid PDF ≤50MB, <strong>When</strong> dragged to upload zone, <strong>Then</strong> see filename + chunk count and can ask questions</td><td>FR-1.1.1–1.4.5</td><td><span class="badge b-red">Must</span></td></tr>
+              <tr class="table-row"><td class="req-id">US-002</td><td>As an operator, I want to ask a question and get a grounded answer with sources</td><td><strong>Given</strong> a document is uploaded, <strong>When</strong> I type a question, <strong>Then</strong> I see an answer and the source chunks it came from</td><td>FR-2.1.1–2.6.3</td><td><span class="badge b-red">Must</span></td></tr>
+              <tr class="table-row"><td class="req-id">US-003</td><td>As an operator, I want to ask follow-up questions to explore a topic iteratively</td><td><strong>Given</strong> a prior Q&amp;A turn, <strong>When</strong> I ask "Can you elaborate?", <strong>Then</strong> the answer continues coherently using prior context</td><td>FR-2.2.1–2.3.2</td><td><span class="badge b-red">Must</span></td></tr>
+              <tr class="table-row"><td class="req-id">US-004</td><td>As an operator, I want to see which part of the document the answer came from</td><td><strong>Given</strong> an answer, <strong>When</strong> I look at Sources, <strong>Then</strong> I see filename, page number, and text excerpt for each source chunk</td><td>FR-2.6.1–2.6.3, FR-3.3.1–3.3.3</td><td><span class="badge b-red">Must</span></td></tr>
+              <tr class="table-row"><td class="req-id">US-005</td><td>As an operator, I want to upload multiple documents and ask cross-document questions</td><td><strong>Given</strong> 2+ docs uploaded, <strong>When</strong> I ask a cross-doc question, <strong>Then</strong> sources show chunks from both documents</td><td>FR-1.1.6, FR-2.4.1–2.4.3</td><td><span class="badge b-red">Must</span></td></tr>
+              <tr class="table-row"><td class="req-id">US-006</td><td>As an operator, I want to clear my session to start fresh</td><td><strong>Given</strong> docs and chat history exist, <strong>When</strong> I click Clear and confirm, <strong>Then</strong> collection is empty and UI is reset</td><td>FR-1.5.1–1.5.3, FR-3.4.1–3.4.3</td><td><span class="badge b-red">Must</span></td></tr>
+              <tr class="table-row"><td class="req-id">US-007</td><td>As an operator, I want clear errors when I upload an unsupported file</td><td><strong>Given</strong> I drag a .zip, <strong>When</strong> upload is rejected, <strong>Then</strong> I see "Unsupported file type. Allowed: PDF, DOCX, TXT"</td><td>FR-1.1.2, FR-3.1.5</td><td><span class="badge b-red">Must</span></td></tr>
+              <tr class="table-row"><td class="req-id">US-008</td><td>As an operator, I want to run the whole app with one command</td><td><strong>Given</strong> Docker and .env file, <strong>When</strong> I run <code>docker-compose up --build</code>, <strong>Then</strong> frontend and backend start and app is usable</td><td>FR-4.1.1–4.4.3</td><td><span class="badge b-red">Must</span></td></tr>
+            </tbody>
+          </table></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- S10: DATA REQUIREMENTS -->
+    <div class="doc-section" id="data-reqs">
+      <div class="section-header"><div>
+        <div class="section-title">Data Requirements</div>
+        <div class="section-desc">Data dictionary, storage, and retention rules</div>
+      </div><span class="section-chevron">▾</span></div>
+      <div class="section-body">
+        <div class="card" style="margin-top:14px;">
+          <h3 style="margin-top:0;">Data Dictionary</h3>
+          <div class="table-wrap"><table>
+            <thead><tr><th>Entity</th><th>Attribute</th><th>Type</th><th>Nullable</th><th>Description</th></tr></thead>
+            <tbody>
+              <tr class="table-row"><td>Document</td><td><code>doc_id</code></td><td>string (UUID4)</td><td>No</td><td>Unique identifier assigned at upload</td></tr>
+              <tr class="table-row"><td>Document</td><td><code>filename</code></td><td>string</td><td>No</td><td>Original filename as uploaded</td></tr>
+              <tr class="table-row"><td>Document</td><td><code>upload_timestamp</code></td><td>ISO 8601 string</td><td>No</td><td>UTC timestamp of upload</td></tr>
+              <tr class="table-row"><td>Chunk</td><td><code>chunk_id</code></td><td>string (<code>&#123;doc_id&#125;_&#123;chunk_index&#125;</code>)</td><td>No</td><td>Deterministic unique ID per chunk</td></tr>
+              <tr class="table-row"><td>Chunk</td><td><code>chunk_text</code></td><td>string (max 1000 chars)</td><td>No</td><td>Raw text content of the chunk</td></tr>
+              <tr class="table-row"><td>Chunk</td><td><code>chunk_index</code></td><td>integer</td><td>No</td><td>0-based position of chunk within document</td></tr>
+              <tr class="table-row"><td>Chunk</td><td><code>page</code></td><td>integer</td><td>No</td><td>Source page number (1-based)</td></tr>
+              <tr class="table-row"><td>Chunk</td><td><code>embedding</code></td><td>float[1536]</td><td>No</td><td>OpenAI text-embedding-3-small vector</td></tr>
+              <tr class="table-row"><td>Message</td><td><code>role</code></td><td>enum: "human" | "assistant"</td><td>No</td><td>Who sent the message</td></tr>
+              <tr class="table-row"><td>Message</td><td><code>content</code></td><td>string</td><td>No</td><td>Message text</td></tr>
+            </tbody>
+          </table></div>
+        </div>
+        <div class="grid-2" style="margin-top:14px;">
+          <div class="card">
+            <h3 style="margin-top:0;">Data Storage</h3>
+            <div class="table-wrap"><table>
+              <thead><tr><th>Data</th><th>Where</th><th>Persistence</th></tr></thead>
+              <tbody>
+                <tr class="table-row"><td>Embeddings + metadata</td><td>ChromaDB (<code>CHROMA_PERSIST_DIR/ragchatbot_docs</code>)</td><td>Survives restarts</td></tr>
+                <tr class="table-row"><td>Chat history</td><td>React component state (client-side)</td><td>Resets on refresh</td></tr>
+                <tr class="table-row"><td>Uploaded file bytes</td><td>Not stored — memory only during ingestion</td><td>Never persisted</td></tr>
+              </tbody>
+            </table></div>
+          </div>
+          <div class="card">
+            <h3 style="margin-top:0;">Data Retention</h3>
+            <div class="table-wrap"><table>
+              <thead><tr><th>Data</th><th>Retention Rule</th></tr></thead>
+              <tbody>
+                <tr class="table-row"><td>ChromaDB collection</td><td>Persists until <code>/clear</code> is called — no TTL</td></tr>
+                <tr class="table-row"><td>Chat history</td><td>Until page refresh or clear</td></tr>
+                <tr class="table-row"><td>File bytes</td><td>Never persisted — streamed in memory during ingestion only</td></tr>
+              </tbody>
+            </table></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- S11: EXTERNAL INTERFACES -->
+    <div class="doc-section" id="interfaces">
+      <div class="section-header"><div>
+        <div class="section-title">External Interfaces</div>
+        <div class="section-desc">4 integration points</div>
+      </div><span class="section-chevron">▾</span></div>
+      <div class="section-body">
+        <div class="card" style="margin-top:14px;">
+          <div class="table-wrap"><table>
+            <thead><tr><th>ID</th><th>System</th><th>Direction</th><th>Protocol</th><th>Auth</th><th>Key Operations</th></tr></thead>
+            <tbody>
+              <tr class="table-row"><td class="req-id">INT-01</td><td><strong>OpenAI Embeddings API</strong></td><td>Backend → OpenAI</td><td>HTTPS / REST</td><td>API Key (<code>OPENAI_API_KEY</code>)</td><td>Embed text chunks → 1536-dim vectors</td></tr>
+              <tr class="table-row"><td class="req-id">INT-02</td><td><strong>OpenAI Chat API (GPT-4o)</strong></td><td>Backend → OpenAI</td><td>HTTPS / REST</td><td>API Key (<code>OPENAI_API_KEY</code>)</td><td>Generate grounded answers from context</td></tr>
+              <tr class="table-row"><td class="req-id">INT-03</td><td><strong>ChromaDB</strong></td><td>Backend ↔ ChromaDB</td><td>In-process (embedded)</td><td>None</td><td>Upsert, similarity search, delete collection</td></tr>
+              <tr class="table-row"><td class="req-id">INT-04</td><td><strong>Frontend ↔ Backend</strong></td><td>React → FastAPI</td><td>HTTP / REST</td><td>None (Phase 1)</td><td>/upload, /ask, /clear, /health</td></tr>
+            </tbody>
+          </table></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- S12: TRACEABILITY -->
+    <div class="doc-section" id="traceability">
+      <div class="section-header"><div>
+        <div class="section-title">Traceability Matrix</div>
+        <div class="section-desc">User stories → Functional requirements → Endpoints</div>
+      </div><span class="section-chevron">▾</span></div>
+      <div class="section-body">
+        <div class="card" style="margin-top:14px;">
+          <div class="table-wrap"><table>
+            <thead><tr><th>User Story</th><th>Description</th><th>Related FRs</th><th>Use Case</th><th>Endpoint</th></tr></thead>
+            <tbody>
+              <tr class="table-row"><td class="req-id">US-001</td><td>Upload PDF</td><td>FR-1.1.1–1.4.5</td><td>UC-01</td><td><code>POST /upload</code></td></tr>
+              <tr class="table-row"><td class="req-id">US-002</td><td>Ask question + get answer</td><td>FR-2.1.1–2.6.3</td><td>UC-01</td><td><code>POST /ask</code></td></tr>
+              <tr class="table-row"><td class="req-id">US-003</td><td>Follow-up questions</td><td>FR-2.2.1–2.3.2</td><td>UC-02</td><td><code>POST /ask</code></td></tr>
+              <tr class="table-row"><td class="req-id">US-004</td><td>Source attribution</td><td>FR-2.6.1–2.6.3, FR-3.3.1–3.3.3</td><td>UC-01</td><td><code>POST /ask</code> (response)</td></tr>
+              <tr class="table-row"><td class="req-id">US-005</td><td>Multi-document</td><td>FR-1.1.6, FR-2.4.1–2.4.3</td><td>UC-03</td><td><code>POST /upload</code> + <code>POST /ask</code></td></tr>
+              <tr class="table-row"><td class="req-id">US-006</td><td>Clear session</td><td>FR-1.5.1–1.5.3, FR-3.4.1–3.4.3</td><td>UC-04</td><td><code>POST /clear</code></td></tr>
+              <tr class="table-row"><td class="req-id">US-007</td><td>File type validation</td><td>FR-1.1.2–1.1.3, FR-3.1.5</td><td>UC-01 (alt)</td><td><code>POST /upload</code></td></tr>
+              <tr class="table-row"><td class="req-id">US-008</td><td>Docker one-command startup</td><td>FR-4.1.1–4.4.3</td><td>—</td><td><code>docker-compose up</code></td></tr>
+            </tbody>
+          </table></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- S13: OPEN ISSUES + ASSUMPTIONS -->
+    <div class="doc-section" id="issues-assumptions">
+      <div class="section-header"><div>
+        <div class="section-title">Open Issues &amp; Assumptions</div>
+        <div class="section-desc">Items requiring resolution before development begins</div>
+      </div><span class="section-chevron">▾</span></div>
+      <div class="section-body">
+        <div class="grid-2" style="margin-top:14px;">
+          <div class="card">
+            <h3 style="margin-top:0;">Open Issues</h3>
+            <div class="table-wrap"><table>
+              <thead><tr><th>ID</th><th>Description</th><th>Owner</th><th>Status</th></tr></thead>
+              <tbody>
+                <tr class="table-row"><td class="req-id">ISS-01</td><td>Confirm GPT-4o availability on the OpenAI account — fallback to GPT-4o-mini if quota-limited</td><td>openclaw-control-ui</td><td><span class="badge b-amber">Open</span></td></tr>
+                <tr class="table-row"><td class="req-id">ISS-02</td><td>CHROMA_PERSIST_DIR absolute vs relative path behaviour in Docker volume mount — confirm during Phase 5</td><td>Ved</td><td><span class="badge b-amber">Open</span></td></tr>
+                <tr class="table-row"><td class="req-id">ISS-03</td><td><code>page</code> field for DOCX/TXT: no native page concept — define convention (always 1, or paragraph index)</td><td>Ved</td><td><span class="badge b-amber">Open</span></td></tr>
+                <tr class="table-row"><td class="req-id">ISS-04</td><td>Max chunk_count per session not defined — ChromaDB performance at &gt;10K chunks not validated</td><td>Ved</td><td><span class="badge b-amber">Open</span></td></tr>
+              </tbody>
+            </table></div>
+          </div>
+          <div class="card">
+            <h3 style="margin-top:0;">Assumptions &amp; Dependencies</h3>
+            <div class="table-wrap"><table>
+              <thead><tr><th>ID</th><th>Assumption</th><th>Impact if Invalid</th></tr></thead>
+              <tbody>
+                <tr class="table-row"><td class="req-id">FA-01</td><td>Valid OpenAI API key with GPT-4o access</td><td>App cannot function — all /ask calls fail</td></tr>
+                <tr class="table-row"><td class="req-id">FA-02</td><td>Docker and docker-compose installed on machine</td><td>docker-compose startup fails</td></tr>
+                <tr class="table-row"><td class="req-id">FA-03</td><td>Documents contain extractable text (not image scans)</td><td>System returns 400; user must use OCR externally</td></tr>
+                <tr class="table-row"><td class="req-id">FA-04</td><td>Single user — no concurrent session isolation needed</td><td>Multi-user access would cause collection contamination</td></tr>
+                <tr class="table-row"><td class="req-id">FA-05</td><td>Network access to api.openai.com from running machine</td><td>Embedding and answering fail at API call step</td></tr>
+                <tr class="table-row"><td class="req-id">FA-06</td><td>Local disk has space for ChromaDB (~1MB per 500 chunks)</td><td>ChromaDB write fails for large document sets</td></tr>
+              </tbody>
+            </table></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- S14: APPROVAL -->
+    <div class="doc-section" id="approval">
+      <div class="section-header"><div>
+        <div class="section-title">Approval &amp; Sign-Off</div>
+        <div class="section-desc">Required before development commences</div>
+      </div><span class="section-chevron">▾</span></div>
+      <div class="section-body">
+        <div class="card" style="margin-top:14px;">
+          <div class="note note-amber"><strong>Status:</strong> This FRD is currently in Draft. Development cannot begin until the Product Owner signs off below. To approve, say "approve FRD" or "/approve frd".</div>
+          <div class="sign-row" style="margin-top:20px;">
+            <div class="sign-card">
+              <div style="font-size:24px;margin-bottom:8px;">👤</div>
+              <div class="sign-name">openclaw-control-ui</div>
+              <div class="sign-role">Product Owner / BSH</div>
+              <span class="badge b-amber">Pending Approval</span>
+            </div>
+            <div class="sign-card">
+              <div style="font-size:24px;margin-bottom:8px;">🧠</div>
+              <div class="sign-name">Ved</div>
+              <div class="sign-role">Technical Lead / Author</div>
+              <span class="badge b-green">Drafted 2026-03-31</span>
+            </div>
+            <div class="sign-card">
+              <div style="font-size:24px;margin-bottom:8px;">📋</div>
+              <div class="sign-name">QA Lead</div>
+              <div class="sign-role">Quality Engineering</div>
+              <span class="badge b-slate">TBD</span>
+            </div>
+          </div>
+        </div>
+        <div class="note note-blue" style="margin-top:14px;"><strong>Next Step:</strong> Review all 40+ requirements in the Functional Requirements section. Confirm scope matches intent. Say "approve FRD" to lock this document and advance to Phase 2 (Architecture Design).</div>
+      </div>
+    </div>
+
+    <div class="footer">RAG Chatbot FRD v26.03.01 &nbsp;·&nbsp; Generated by Ved | Mu Sigma Digital Employee &nbsp;·&nbsp; 2026-03-31</div>
+  </div>
+</div>
+
+<script>
+(function() {
+
+  /* ── Footer date ── */
+  var months = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+  var d = new Date();
+  var fd = document.getElementById('footer-date');
+  if (fd) fd.textContent = months[d.getMonth()] + ' ' + d.getFullYear();
+
+  /* ── Scroll progress bar ── */
+  var bar = document.getElementById('progress-bar');
+  function updateBar() {
+    var scrollTop = window.scrollY || document.documentElement.scrollTop;
+    var docH = document.documentElement.scrollHeight - window.innerHeight;
+    bar.style.width = (docH > 0 ? (scrollTop / docH * 100) : 0) + '%';
+  }
+  window.addEventListener('scroll', updateBar, {passive: true});
+
+  /* ── Back to top ── */
+  var btt = document.getElementById('back-to-top');
+  window.addEventListener('scroll', function() {
+    btt.classList.toggle('visible', window.scrollY > 400);
+  }, {passive: true});
+  btt.addEventListener('click', function() { window.scrollTo({top:0,behavior:'smooth'}); });
+
+  /* ── TOC build + scroll-spy ── */
+  var sections = document.querySelectorAll('.doc-section[id]');
+  var nav = document.getElementById('toc-nav');
+  sections.forEach(function(sec) {
+    var h = sec.querySelector('.section-title');
+    if (!h) return;
+    var a = document.createElement('a');
+    a.href = '#' + sec.id;
+    a.textContent = h.textContent.trim();
+    a.setAttribute('data-target', sec.id);
+    a.addEventListener('click', function(e) {
+      e.preventDefault();
+      // expand if collapsed
+      var body = sec.querySelector('.section-body');
+      var chev = sec.querySelector('.section-chevron');
+      if (body && body.classList.contains('collapsed')) {
+        body.classList.remove('collapsed');
+        if (chev) chev.classList.remove('collapsed');
+      }
+      setTimeout(function() {
+        sec.scrollIntoView({behavior:'smooth', block:'start'});
+      }, 50);
+    });
+    nav.appendChild(a);
+  });
+  function updateActive() {
+    var scrollY = window.scrollY + 130;
+    var active = null;
+    sections.forEach(function(s) { if (s.offsetTop <= scrollY) active = s.id; });
+    nav.querySelectorAll('a').forEach(function(a) {
+      a.classList.toggle('active', a.getAttribute('data-target') === active);
+    });
+  }
+  window.addEventListener('scroll', updateActive, {passive:true});
+  updateActive();
+
+  /* ── Mobile TOC toggle ── */
+  var sidebar = document.getElementById('toc-sidebar');
+  var overlay = document.getElementById('toc-overlay');
+  var toggleBtn = document.getElementById('toc-toggle-btn');
+  function closeSidebar() { sidebar.classList.remove('open'); overlay.classList.remove('open'); }
+  if (toggleBtn) { toggleBtn.addEventListener('click', function() { sidebar.classList.toggle('open'); overlay.classList.toggle('open'); }); }
+  if (overlay) overlay.addEventListener('click', closeSidebar);
+  nav.querySelectorAll('a').forEach(function(a) { a.addEventListener('click', closeSidebar); });
+
+  /* ── Collapsible sections ── */
+  document.querySelectorAll('.section-header').forEach(function(hdr) {
+    hdr.addEventListener('click', function() {
+      var body = hdr.parentElement.querySelector('.section-body');
+      var chev = hdr.querySelector('.section-chevron');
+      if (!body) return;
+      var collapsed = body.classList.toggle('collapsed');
+      if (chev) chev.classList.toggle('collapsed', collapsed);
+    });
+  });
+
+  /* ── Phase tabs ── */
+  document.querySelectorAll('.tab-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var target = btn.getAttribute('data-tab');
+      var parent = btn.closest('.card');
+      parent.querySelectorAll('.tab-btn').forEach(function(b) { b.classList.remove('active'); });
+      parent.querySelectorAll('.tab-pane').forEach(function(p) { p.classList.remove('active'); });
+      btn.classList.add('active');
+      var pane = document.getElementById(target);
+      if (pane) pane.classList.add('active');
+    });
+  });
+
+  /* ── Expandable table rows ── */
+  document.querySelectorAll('.exp-btn').forEach(function(btn) {
+    btn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      var row = btn.closest('tr');
+      var next = row.nextElementSibling;
+      if (next && next.classList.contains('exp-row')) {
+        var open = next.classList.toggle('open');
+        btn.textContent = open ? '▼' : '▶';
+      }
+    });
+  });
+
+  /* ── Badge filter + pagination (edge cases) ── */
+  (function() {
+    var PAGE_SIZE = 10;
+    var currentPage = 1;
+    var currentFilter = 'all';
+
+    function getVisibleRows() {
+      return Array.from(document.querySelectorAll('.ec-row')).filter(function(row) {
+        return currentFilter === 'all' || row.getAttribute('data-phase') === currentFilter;
+      });
+    }
+
+    function renderTable() {
+      var allRows = Array.from(document.querySelectorAll('.ec-row'));
+      var visibleRows = getVisibleRows();
+      var totalPages = Math.max(1, Math.ceil(visibleRows.length / PAGE_SIZE));
+      if (currentPage > totalPages) currentPage = 1;
+
+      // Hide/show rows based on filter + page
+      allRows.forEach(function(row) {
+        var next = row.nextElementSibling;
+        var inFilter = currentFilter === 'all' || row.getAttribute('data-phase') === currentFilter;
+        var idx = visibleRows.indexOf(row);
+        var inPage = idx >= (currentPage - 1) * PAGE_SIZE && idx < currentPage * PAGE_SIZE;
+        var show = inFilter && inPage;
+        row.style.display = show ? '' : 'none';
+        if (next && next.classList.contains('exp-row')) {
+          next.style.display = show && next.classList.contains('open') ? 'table-row' : 'none';
+        }
+      });
+
+      // Pagination bar
+      var info = document.getElementById('ec-page-info');
+      var btns = document.getElementById('ec-page-btns');
+      if (!info || !btns) return;
+      var start = Math.min((currentPage-1)*PAGE_SIZE+1, visibleRows.length);
+      var end   = Math.min(currentPage*PAGE_SIZE, visibleRows.length);
+      info.textContent = visibleRows.length > 0
+        ? 'Showing ' + start + '–' + end + ' of ' + visibleRows.length
+        : 'No results';
+
+      btns.innerHTML = '';
+      // Prev
+      var prev = document.createElement('button');
+      prev.className = 'pg-btn'; prev.textContent = '‹ Prev';
+      prev.disabled = currentPage === 1;
+      prev.addEventListener('click', function() { currentPage--; renderTable(); });
+      btns.appendChild(prev);
+      // Page numbers
+      for (var i = 1; i <= totalPages; i++) {
+        (function(p) {
+          var b = document.createElement('button');
+          b.className = 'pg-btn' + (p === currentPage ? ' active' : '');
+          b.textContent = p;
+          b.addEventListener('click', function() { currentPage = p; renderTable(); });
+          btns.appendChild(b);
+        })(i);
+      }
+      // Next
+      var next2 = document.createElement('button');
+      next2.className = 'pg-btn'; next2.textContent = 'Next ›';
+      next2.disabled = currentPage === totalPages;
+      next2.addEventListener('click', function() { currentPage++; renderTable(); });
+      btns.appendChild(next2);
+
+      // Hide pagination bar if all rows fit on one page and no filter
+      document.getElementById('ec-pagination').style.display =
+        visibleRows.length > PAGE_SIZE ? 'flex' : 'none';
+    }
+
+    document.querySelectorAll('.filter-btn').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        document.querySelectorAll('.filter-btn').forEach(function(b) { b.classList.remove('active'); });
+        btn.classList.add('active');
+        currentFilter = btn.getAttribute('data-f');
+        currentPage = 1;
+        renderTable();
+      });
+    });
+
+    renderTable();
+  })();
+
+  /* ── Copy code buttons ── */
+  document.querySelectorAll('.copy-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var block = btn.closest('.code-wrap').querySelector('.code-block');
+      if (!block) return;
+      var text = block.innerText || block.textContent;
+      navigator.clipboard.writeText(text).then(function() {
+        btn.textContent = '✓ Copied';
+        btn.classList.add('copied');
+        setTimeout(function() { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 2000);
+      }).catch(function() {
+        btn.textContent = 'Error'; setTimeout(function() { btn.textContent = 'Copy'; }, 2000);
+      });
+    });
+  });
+
+  /* ── Dark mode toggle ── */
+  var html = document.documentElement;
+  var darkBtn = document.getElementById('btn-dark');
+  darkBtn.addEventListener('click', function() {
+    var isDark = html.getAttribute('data-theme') === 'dark';
+    html.setAttribute('data-theme', isDark ? 'light' : 'dark');
+    darkBtn.textContent = isDark ? '🌙' : '☀️';
+  });
+
+  /* ── Print button ── */
+  document.getElementById('btn-print').addEventListener('click', function() {
+    // Expand all sections before printing
+    document.querySelectorAll('.section-body.collapsed').forEach(function(b) {
+      b.classList.remove('collapsed');
+      var chev = b.closest('.doc-section').querySelector('.section-chevron');
+      if (chev) chev.classList.remove('collapsed');
+    });
+    setTimeout(function() { window.print(); }, 150);
+  });
+
+  /* ── In-page search ── */
+  var searchPanel = document.getElementById('search-panel');
+  var searchInput = document.getElementById('search-input');
+  var searchCount = document.getElementById('search-count');
+  var btnSearch   = document.getElementById('btn-search');
+  var btnClose    = document.getElementById('search-close');
+  var btnPrev     = document.getElementById('search-prev');
+  var btnNext     = document.getElementById('search-next');
+  var marks = [], markIdx = -1;
+  var originalNodes = new Map();
+
+  function clearMarks() {
+    marks.forEach(function(m) {
+      var parent = m.parentNode;
+      if (!parent) return;
+      parent.replaceChild(document.createTextNode(m.textContent), m);
+      parent.normalize();
+    });
+    marks = []; markIdx = -1; searchCount.textContent = '';
+  }
+
+  function doSearch(q) {
+    clearMarks();
+    if (!q) return;
+    var content = document.getElementById('main-content');
+    var walker = document.createTreeWalker(content, NodeFilter.SHOW_TEXT, {
+      acceptNode: function(node) {
+        var p = node.parentNode;
+        if (!p) return NodeFilter.FILTER_REJECT;
+        var tag = p.tagName ? p.tagName.toLowerCase() : '';
+        if (tag === 'script' || tag === 'style' || tag === 'mark') return NodeFilter.FILTER_REJECT;
+        return node.textContent.toLowerCase().indexOf(q.toLowerCase()) !== -1
+          ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT;
+      }
+    });
+    var nodes = []; var n;
+    while ((n = walker.nextNode())) nodes.push(n);
+    nodes.forEach(function(node) {
+      var text = node.textContent;
+      var lower = text.toLowerCase(); var qLower = q.toLowerCase();
+      var frag = document.createDocumentFragment();
+      var last = 0; var idx;
+      while ((idx = lower.indexOf(qLower, last)) !== -1) {
+        frag.appendChild(document.createTextNode(text.slice(last, idx)));
+        var mark = document.createElement('mark');
+        mark.textContent = text.slice(idx, idx + q.length);
+        frag.appendChild(mark);
+        marks.push(mark);
+        last = idx + q.length;
+      }
+      frag.appendChild(document.createTextNode(text.slice(last)));
+      node.parentNode.replaceChild(frag, node);
+    });
+    if (marks.length) {
+      markIdx = 0; goToMark(0);
+      searchCount.textContent = '1 / ' + marks.length;
+    } else {
+      searchCount.textContent = '0 results';
+    }
+  }
+
+  function goToMark(i) {
+    marks.forEach(function(m) { m.classList.remove('current'); });
+    if (marks[i]) {
+      marks[i].classList.add('current');
+      marks[i].scrollIntoView({behavior:'smooth', block:'center'});
+      searchCount.textContent = (i+1) + ' / ' + marks.length;
+    }
+  }
+
+  function openSearch() { searchPanel.classList.add('open'); searchInput.focus(); searchInput.select(); }
+  function closeSearch() { searchPanel.classList.remove('open'); clearMarks(); searchInput.value = ''; }
+
+  btnSearch.addEventListener('click', function() {
+    searchPanel.classList.contains('open') ? closeSearch() : openSearch();
+  });
+  btnClose.addEventListener('click', closeSearch);
+  btnNext.addEventListener('click', function() { if (!marks.length) return; markIdx = (markIdx+1)%marks.length; goToMark(markIdx); });
+  btnPrev.addEventListener('click', function() { if (!marks.length) return; markIdx = (markIdx-1+marks.length)%marks.length; goToMark(markIdx); });
+
+  var searchTimer;
+  searchInput.addEventListener('input', function() {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(function() { doSearch(searchInput.value.trim()); }, 250);
+  });
+  searchInput.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') { e.preventDefault(); e.shiftKey ? btnPrev.click() : btnNext.click(); }
+    if (e.key === 'Escape') closeSearch();
+  });
+  document.addEventListener('keydown', function(e) {
+    if ((e.ctrlKey || e.metaKey) && e.key === 'k') { e.preventDefault(); openSearch(); }
+    if (e.key === 'Escape' && searchPanel.classList.contains('open')) closeSearch();
+  });
+
+})();
+</script>
+</body>
+</html>
