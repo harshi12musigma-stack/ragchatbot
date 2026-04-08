@@ -1,0 +1,88 @@
+version: '3.8'
+
+services:
+  backend:
+    image: ghcr.io/harshi12musigma-stack/ragchatbot-backend:latest
+    container_name: ragchatbot-backend-prod
+    ports:
+      - "8000:8000"
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - CORS_ORIGINS=${CORS_ORIGINS:-https://ragchatbot.example.com}
+      - CHROMA_PERSIST_DIRECTORY=/app/chroma_data
+      - MAX_UPLOAD_SIZE_MB=${MAX_UPLOAD_SIZE_MB:-10}
+      - CHUNK_SIZE=${CHUNK_SIZE:-500}
+      - CHUNK_OVERLAP=${CHUNK_OVERLAP:-50}
+      - TOP_K_RESULTS=${TOP_K_RESULTS:-5}
+    volumes:
+      - chroma_data:/app/chroma_data
+      - uploads:/app/uploads
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: always
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - ragchatbot-network
+
+  frontend:
+    image: ghcr.io/harshi12musigma-stack/ragchatbot-frontend:latest
+    container_name: ragchatbot-frontend-prod
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      backend:
+        condition: service_healthy
+    volumes:
+      - ./ssl:/etc/nginx/ssl:ro  # Mount SSL certificates if using HTTPS
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost/"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+    restart: always
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      - ragchatbot-network
+
+  # Optional: Redis for session storage (future enhancement)
+  # redis:
+  #   image: redis:7-alpine
+  #   container_name: ragchatbot-redis
+  #   ports:
+  #     - "6379:6379"
+  #   volumes:
+  #     - redis_data:/data
+  #   healthcheck:
+  #     test: ["CMD", "redis-cli", "ping"]
+  #     interval: 30s
+  #     timeout: 3s
+  #     retries: 3
+  #   restart: always
+  #   networks:
+  #     - ragchatbot-network
+
+networks:
+  ragchatbot-network:
+    driver: bridge
+
+volumes:
+  chroma_data:
+    driver: local
+  uploads:
+    driver: local
+  # redis_data:
+  #   driver: local
