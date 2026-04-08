@@ -1,0 +1,141 @@
+╔═══════════════════════════════════════════════════════════════════════════════╗
+║                   RAG CHATBOT - SYSTEM ARCHITECTURE                           ║
+║                   3-Tier Microservices Architecture                           ║
+╚═══════════════════════════════════════════════════════════════════════════════╝
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         TIER 1: FRONTEND (Presentation)                     │
+│                                                                              │
+│  Technology: React 18 + Vite + TailwindCSS                                 │
+│  Port: 5173 (development)                                                   │
+│                                                                              │
+│  Components:                                                                 │
+│    ┌─────────────────────┐  ┌──────────────────────┐                       │
+│    │  DocumentUploader   │  │   ChatInterface      │                       │
+│    │  - Drag & drop      │  │   - Message history  │                       │
+│    │  - Progress bar     │  │   - Real-time chat   │                       │
+│    └─────────────────────┘  └──────────────────────┘                       │
+│                                                                              │
+│    ┌─────────────────────┐  ┌──────────────────────┐                       │
+│    │   SourcePanel       │  │   SessionManager     │                       │
+│    │   - Doc chunks      │  │   - Conversation     │                       │
+│    │   - Citations       │  │   - History switch   │                       │
+│    └─────────────────────┘  └──────────────────────┘                       │
+└──────────────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    │ HTTP/REST API
+                                    ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                      TIER 2: BACKEND (Application)                          │
+│                                                                              │
+│  Technology: FastAPI (Python 3.11+)                                         │
+│  Port: 8000                                                                  │
+│                                                                              │
+│  API Endpoints:                                                              │
+│    POST   /api/upload      → Upload & process documents                    │
+│    POST   /api/chat        → Send query, get RAG answer                    │
+│    GET    /api/documents   → List uploaded documents                       │
+│    DELETE /api/documents/{id} → Remove document                            │
+│    GET    /api/sessions    → List conversation sessions                    │
+│    GET    /api/health      → Health check                                  │
+│                                                                              │
+│  Core Modules:                                                               │
+│    ┌──────────────────────────────────────────────────────────────┐        │
+│    │ document_processor.py   │ Extract text, chunk (500 tok)     │        │
+│    │ embedding_service.py    │ OpenAI text-embedding-3-small     │        │
+│    │ vector_store.py         │ ChromaDB integration              │        │
+│    │ rag_engine.py           │ Context building + GPT-4o-mini    │        │
+│    │ session_manager.py      │ Conversation history tracking     │        │
+│    └──────────────────────────────────────────────────────────────┘        │
+└──────────────────────────────────────────────────────────────────────────────┘
+                          │                           │
+              ChromaDB SDK│                           │ OpenAI SDK
+                          ▼                           ▼
+┌──────────────────────────────────┐    ┌────────────────────────────────────┐
+│     TIER 3: DATA TIER            │    │     EXTERNAL SERVICES              │
+│                                  │    │                                    │
+│  ┌────────────────────────────┐  │    │  ┌──────────────────────────────┐ │
+│  │   ChromaDB (Vector Store)  │  │    │  │      OpenAI API              │ │
+│  │   - 1536-dim embeddings    │  │    │  │  - text-embedding-3-small    │ │
+│  │   - Cosine similarity      │  │    │  │  - gpt-4o-mini               │ │
+│  │   - Persistent storage     │  │    │  │  - OPENAI_API_KEY env var    │ │
+│  │   - ./chroma_data/         │  │    │  └──────────────────────────────┘ │
+│  └────────────────────────────┘  │    └────────────────────────────────────┘
+│                                  │
+│  ┌────────────────────────────┐  │
+│  │   File Storage (Temp)      │  │
+│  │   - ./uploads/             │  │
+│  │   - Deleted post-process   │  │
+│  └────────────────────────────┘  │
+└──────────────────────────────────┘
+
+═══════════════════════════════════════════════════════════════════════════════
+
+                              KEY WORKFLOWS
+
+───────────────────────────────────────────────────────────────────────────────
+1. DOCUMENT UPLOAD FLOW
+───────────────────────────────────────────────────────────────────────────────
+
+  User                 Frontend              Backend                ChromaDB
+   │                      │                     │                      │
+   │──Upload File────────>│                     │                      │
+   │                      │──POST /api/upload──>│                      │
+   │                      │                     │──Extract Text───────>│
+   │                      │                     │──Chunk (500 tok)────>│
+   │                      │                     │──Embed (OpenAI)─────>│
+   │                      │                     │──Store Vectors──────>│
+   │                      │                     │                      │
+   │                      │<─{doc_id, chunks}───│                      │
+   │<─Document Added──────│                     │                      │
+   │                      │                     │                      │
+
+───────────────────────────────────────────────────────────────────────────────
+2. CHAT QUERY FLOW
+───────────────────────────────────────────────────────────────────────────────
+
+  User                 Frontend              Backend                ChromaDB
+   │                      │                     │                      │
+   │──Send Message───────>│                     │                      │
+   │                      │──POST /api/chat────>│                      │
+   │                      │  {query, session}   │                      │
+   │                      │                     │──Embed Query────────>│
+   │                      │                     │<─Top-5 Chunks────────│
+   │                      │                     │                      │
+   │                      │                     │──Build Context──────>OpenAI
+   │                      │                     │<─GPT-4o-mini Answer──│
+   │                      │                     │                      │
+   │                      │<─{answer, sources}──│                      │
+   │<─Display Answer─────>│                     │                      │
+   │  + Citations         │                     │                      │
+
+═══════════════════════════════════════════════════════════════════════════════
+
+                          TECHNOLOGY STACK SUMMARY
+
+  Layer              Technology                  Justification
+  ─────────────────  ──────────────────────────  ────────────────────────────
+  Frontend           React 18 + Vite             Modern, fast, large ecosystem
+  Styling            TailwindCSS                 Utility-first, rapid proto
+  Backend            FastAPI (Python 3.11+)      Async, LLM-friendly
+  Vector DB          ChromaDB                    Lightweight, Python-native
+  Embeddings         text-embedding-3-small      Cost-effective, 1536-dim
+  LLM                gpt-4o-mini                 Fast, accurate, affordable
+  Orchestration      LangChain                   RAG patterns, templates
+  File Parsing       PyPDF2, python-docx         Standard, reliable
+
+═══════════════════════════════════════════════════════════════════════════════
+
+                              DEPLOYMENT
+
+Phase 1 (Local Development):
+  ├─ Frontend: Vite dev server (port 5173)
+  ├─ Backend: Uvicorn (port 8000)
+  └─ ChromaDB: Embedded mode (./chroma_data/)
+
+Phase 2 (Production - Future):
+  ├─ Frontend: Vercel / Netlify (static hosting)
+  ├─ Backend: Docker → Render / Railway / AWS EC2
+  └─ Storage: Persistent volume for ChromaDB
+
+═══════════════════════════════════════════════════════════════════════════════
