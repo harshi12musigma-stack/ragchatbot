@@ -42,7 +42,8 @@ async def health_check():
         content={
             "status": "healthy",
             "service": "rag-chatbot-api",
-            "version": "1.0.0"
+            "version": "1.0.0",
+            "openai_configured": bool(settings.openai_api_key)
         }
     )
 
@@ -59,12 +60,12 @@ async def root():
     }
 
 
-# Import routers (will be created in next steps)
-# from app.api import upload, chat, documents, sessions
-# app.include_router(upload.router, prefix="/api", tags=["upload"])
-# app.include_router(chat.router, prefix="/api", tags=["chat"])
-# app.include_router(documents.router, prefix="/api", tags=["documents"])
-# app.include_router(sessions.router, prefix="/api", tags=["sessions"])
+# Import routers
+from app.api import upload, chat
+from app.core.config import settings
+
+app.include_router(upload.router, prefix="/api", tags=["upload"])
+app.include_router(chat.router, prefix="/api", tags=["chat"])
 
 
 if __name__ == "__main__":
